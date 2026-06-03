@@ -1,5 +1,16 @@
 const { test, expect } = require('@playwright/test');
 
+test('les boutons à fond clair ont un texte lisible (pas blanc sur clair)', async ({ page }) => {
+  await page.goto('/chess.html');
+  // bouton de mode inactif (fond crème) + bouton de drill (fond crème)
+  const colors = await page.evaluate(() => ({
+    modeInactif: getComputedStyle(document.getElementById('modeTrain')).color,
+    drill: getComputedStyle(document.getElementById('drillHintBtn')).color
+  }));
+  expect(colors.modeInactif).not.toBe('rgb(255, 255, 255)');
+  expect(colors.drill).not.toBe('rgb(255, 255, 255)');
+});
+
 test('le sélecteur de mode bascule entre partie libre et entraînement', async ({ page }) => {
   await page.goto('/chess.html');
   // Par défaut : partie libre, panneau scores visible, entraînement caché

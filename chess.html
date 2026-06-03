@@ -1117,6 +1117,24 @@ let positionCounts=new Map(); // threefold repetition tracking
 let worker=null;
 let bookData=null; // Uint8Array du fichier .bin Polyglot chargé
 
+// === TUTEUR IA : état & réglages ===
+let tutorEnabled=false;          // interrupteur du tuteur
+let lastAnalysis=null;           // dernier résultat d'analyse {evalCp, pv, isBook}
+const TUTOR_DEFAULT_MODEL='claude-haiku-4-5-20251001';
+
+function getTutorSettings(){
+  return {
+    apiKey: localStorage.getItem('tutorApiKey')||'',
+    model:  localStorage.getItem('tutorModel')||TUTOR_DEFAULT_MODEL
+  };
+}
+function setTutorSetting(key,value){
+  localStorage.setItem(key,value);
+}
+
+// Exposé uniquement pour les tests automatisés
+window.__tutorTest={ getTutorSettings, setTutorSetting };
+
 // === WEB WORKER ===
 function sendBookToWorker(){
   if(!worker||!bookData)return;

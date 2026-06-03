@@ -1385,7 +1385,7 @@ function evalToWords(cp){
 }
 
 // Exposé uniquement pour les tests automatisés
-window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis, pvToSan, formatPvLine, buildLLMPrompt };
+window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis, pvToSan, formatPvLine, buildLLMPrompt, fromFEN };
 
 // === WEB WORKER ===
 function sendBookToWorker(){
@@ -1607,7 +1607,22 @@ function notation(s,m){
   const p=s.b[m.from];
   if(m.castle)return m.castle.toLowerCase()==='k'?'O-O':'O-O-O';
   const cap=s.b[m.to]||m.ep;
-  let out=p.t==='P'?(cap?FILES[rc(m.from)[1]]:''):p.t;
+  let out;
+  if(p.t==='P'){
+    out=cap?FILES[rc(m.from)[1]]:'';
+  } else {
+    out=p.t;
+    // Désambiguïsation SAN : d'autres pièces de même type peuvent-elles aller sur m.to ?
+    const others=legalMoves(s,s.turn).filter(x=>x.to===m.to&&x.from!==m.from&&s.b[x.from]&&s.b[x.from].t===p.t);
+    if(others.length){
+      const[fr,fc]=rc(m.from);
+      const sameFile=others.some(x=>rc(x.from)[1]===fc);
+      const sameRank=others.some(x=>rc(x.from)[0]===fr);
+      if(!sameFile)out+=FILES[fc];           // colonne suffit
+      else if(!sameRank)out+=String(8-fr);   // sinon rangée
+      else out+=sqName(m.from);              // sinon case complète
+    }
+  }
   out+=cap?'x':'';out+=sqName(m.to);
   if(m.promo)out+='='+m.promo;
   const n=applyMove(s,m,false),lm=legalMoves(n,n.turn);

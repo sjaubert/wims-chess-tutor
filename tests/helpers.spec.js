@@ -65,3 +65,23 @@ test('formatPvLine numérote les coups depuis la position initiale (Blancs au tr
   );
   expect(line).toBe('1.e4 e5 2.Cf3');
 });
+
+test('notation désambiguïse par la colonne (deux cavaliers vers d2 -> Cbd2)', async ({ page }) => {
+  await page.goto('/chess.html');
+  // Cavaliers blancs en b1 et f3, les deux peuvent aller en d2
+  const san = await page.evaluate(() => {
+    const s = window.__tutorTest.fromFEN('7k/8/8/8/8/5N2/8/1N5K w - - 0 1');
+    return window.__tutorTest.pvToSan(['b1d2'], s);
+  });
+  expect(san).toEqual(['Cbd2']);
+});
+
+test('notation désambiguïse par la rangée quand la colonne ne suffit pas (Rooks a1/a3 vers a2)', async ({ page }) => {
+  await page.goto('/chess.html');
+  // Tours blanches en a1 et a3 (même colonne) vers a2 -> désambiguïsation par rangée: T1a2
+  const san = await page.evaluate(() => {
+    const s = window.__tutorTest.fromFEN('8/8/8/8/8/R7/8/R3K1k1 w - - 0 1');
+    return window.__tutorTest.pvToSan(['a1a2'], s);
+  });
+  expect(san).toEqual(['T1a2']);
+});

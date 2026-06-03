@@ -1413,7 +1413,7 @@ function startDrill(opening, side){
   flipped=(userColor===BLACK);
   state=fromFEN(START);
   selected=null; lastMove=null; history=[]; gameOver=false; resigned=false;
-  positionCounts=new Map(); legalCache=[];
+  positionCounts=new Map(); legalCache=[]; undoStack=[];
   document.getElementById('openingPicker').classList.add('hidden');
   document.getElementById('drillPanel').classList.remove('hidden');
   document.getElementById('drillToFree').classList.add('hidden');
@@ -1515,6 +1515,7 @@ function continueInFreePlay(){
   document.getElementById('modePlay').classList.add('active');
   document.getElementById('modeTrain').classList.remove('active');
   gameOver=false; botBusy=false;
+  undoStack=[];
   render();
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }

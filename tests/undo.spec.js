@@ -37,3 +37,19 @@ test('annuler restaure exactement la position intermédiaire (et deux fois -> d�
   expect(await occupied(page)).toEqual(start);
   await expect(page.locator('#undoMove')).toBeDisabled();
 });
+
+test('Annuler est désactivé pendant la réflexion du bot puis réactivé', async ({ page }) => {
+  await page.goto('/chess.html');
+  await dragPiece(page, 52, 36);                          // votre coup -> trait au bot
+  await expect(page.locator('#undoMove')).toBeDisabled(); // bot réfléchit / trait au bot
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 }); // bot a répondu
+});
+
+test('Annuler est désactivé après la fin de partie (abandon)', async ({ page }) => {
+  page.on('dialog', d => d.accept());
+  await page.goto('/chess.html');
+  await dragPiece(page, 52, 36);
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  await page.locator('#resign').click();                  // partie terminée
+  await expect(page.locator('#undoMove')).toBeDisabled();
+});

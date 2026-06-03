@@ -49,3 +49,19 @@ test('evalToWords traduit en français', async ({ page }) => {
   expect(r.decisif).toContain('décisif');
   expect(r.matB).toContain('Mat');
 });
+
+test('pvToSan convertit une variante UCI en notation française', async ({ page }) => {
+  await page.goto('/chess.html');
+  const san = await page.evaluate(() =>
+    window.__tutorTest.pvToSan(['e2e4', 'e7e5', 'g1f3'])
+  );
+  expect(san).toEqual(['e4', 'e5', 'Cf3']);
+});
+
+test('formatPvLine numérote les coups depuis la position initiale (Blancs au trait)', async ({ page }) => {
+  await page.goto('/chess.html');
+  const line = await page.evaluate(() =>
+    window.__tutorTest.formatPvLine(['e4', 'e5', 'Cf3'])
+  );
+  expect(line).toBe('1.e4 e5 2.Cf3');
+});

@@ -1197,6 +1197,37 @@ function requestAnalysis(force){
 // Implémentation complète posée en Task 5 ; stub pour l'instant.
 function renderTutorPanel(){}
 
+// Convertit la notation interne (lettres anglaises N,B,R,Q,K) en français (C,F,T,D,R)
+const SAN_FR={N:'C',B:'F',R:'T',Q:'D',K:'R'};
+function toFrenchSAN(san){ return san.replace(/[NBRQK]/g,c=>SAN_FR[c]); }
+
+// Convertit une variante en UCI (depuis la position courante par défaut) en SAN français
+function pvToSan(pvUci, fromState){
+  let s=fromState||state;
+  const out=[];
+  for(const u of pvUci){
+    const lm=legalMoves(s);
+    const m=lm.find(x=>sqName(x.from)+sqName(x.to)+(x.promo?x.promo.toLowerCase():'')===u);
+    if(!m)break;
+    out.push(toFrenchSAN(notation(s,m)));
+    s=applyMove(s,m,false);
+  }
+  return out;
+}
+
+// Numérote une liste de coups SAN. startState détermine le n° et le camp au trait.
+function formatPvLine(sanList, startState){
+  const s=startState||state;
+  let moveNo=s.full, whiteToMove=(s.turn===WHITE);
+  const parts=[];
+  for(let i=0;i<sanList.length;i++){
+    if(whiteToMove){ parts.push(moveNo+'.'+sanList[i]); }
+    else{ if(i===0)parts.push(moveNo+'...'+sanList[i]); else parts.push(sanList[i]); moveNo++; }
+    whiteToMove=!whiteToMove;
+  }
+  return parts.join(' ');
+}
+
 const MATE_THRESHOLD=999000; // au-delà : il s'agit d'un mat
 
 // cp est exprimé du point de vue des Blancs (positif = avantage blancs)
@@ -1220,7 +1251,7 @@ function evalToWords(cp){
 }
 
 // Exposé uniquement pour les tests automatisés
-window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis };
+window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis, pvToSan, formatPvLine };
 
 // === WEB WORKER ===
 function sendBookToWorker(){

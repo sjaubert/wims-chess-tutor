@@ -1234,7 +1234,7 @@ const boardEl=document.getElementById('board'),
 
 const VAL={P:100,N:320,B:335,R:500,Q:930,K:0};
 let userColor=WHITE, botColor=BLACK;
-let state, flipped, selected, legalCache, lastMove, history, dragging, botBusy, gameOver;
+let state, flipped, selected, legalCache, lastMove, history, dragging, botBusy, gameOver, resigned;
 let scores=loadScores(), scoredThisGame=false;
 let pendingPromo=null;
 let positionCounts=new Map(); // threefold repetition tracking
@@ -1766,21 +1766,27 @@ function pieceName(t){return{P:'PAWN',N:'KNIGHT',B:'BISHOP',R:'ROOK',Q:'QUEEN',K
 function updatePanel(){
   const lm=legalCache.length?legalCache:legalMoves(state);
   const noMoves=lm.length===0,chk=inCheck(state,state.turn),drawReason=isDrawPosition(lm);
-  gameOver=noMoves||!!drawReason;
-  if(gameOver){
-    if(drawReason){
-      const msgs={insufficient:'Draw — insufficient material',stalemate:'Stalemate',threefold:'Draw — threefold repetition',fifty:'Draw — 50-move rule'};
-      statusEl.textContent=msgs[drawReason]||'Draw';
-      if(!scoredThisGame){scores.draw++;scoredThisGame=true;saveScores();}
-    } else if(chk){
-      const userWon=state.turn===botColor;
-      statusEl.textContent=userWon?'Checkmate — YOU win':'Checkmate — BOT wins';
-      if(!scoredThisGame){userWon?scores.you++:scores.bot++;scoredThisGame=true;saveScores();}
-    }
-  } else if(botBusy||state.turn===botColor){
-    statusEl.textContent='Bot thinking...';
+  if(resigned){
+    // Abandon manuel : état terminal qui doit survivre aux render() suivants.
+    gameOver=true;
+    statusEl.textContent='Vous abandonnez — BOT gagne';
   } else {
-    statusEl.textContent=chk?'Your move — CHECK':'Your move';
+    gameOver=noMoves||!!drawReason;
+    if(gameOver){
+      if(drawReason){
+        const msgs={insufficient:'Draw — insufficient material',stalemate:'Stalemate',threefold:'Draw — threefold repetition',fifty:'Draw — 50-move rule'};
+        statusEl.textContent=msgs[drawReason]||'Draw';
+        if(!scoredThisGame){scores.draw++;scoredThisGame=true;saveScores();}
+      } else if(chk){
+        const userWon=state.turn===botColor;
+        statusEl.textContent=userWon?'Checkmate — YOU win':'Checkmate — BOT wins';
+        if(!scoredThisGame){userWon?scores.you++:scores.bot++;scoredThisGame=true;saveScores();}
+      }
+    } else if(botBusy||state.turn===botColor){
+      statusEl.textContent='Bot thinking...';
+    } else {
+      statusEl.textContent=chk?'Your move — CHECK':'Your move';
+    }
   }
   updateScoreboard();
   updateCaptures();
@@ -1935,7 +1941,7 @@ function startNewGame(flipColors=true){
   flipped=userColor===BLACK;
   state=fromFEN(START);
   selected=null;lastMove=null;history=[];
-  botBusy=false;gameOver=false;scoredThisGame=false;
+  botBusy=false;gameOver=false;scoredThisGame=false;resigned=false;
   pendingPromo=null;
   positionCounts=new Map();
   promoOverlay.classList.add('hidden');
@@ -2030,13 +2036,11 @@ document.getElementById('newGame').onclick=()=>{
   if(confirm('Nouvelle partie ?'))startNewGame(true);
 };
 document.getElementById('resign').onclick=()=>{
-  if(gameOver)return;
+  if(gameOver||resigned)return;
   if(confirm('Abandonner la partie ?')){
-    gameOver=true;
-    statusEl.textContent='Vous abandonnez — BOT gagne';
+    resigned=true;
     if(!scoredThisGame){scores.bot++;scoredThisGame=true;saveScores();}
-    updateScoreboard();
-    render();
+    render(); // render() -> updatePanel() applique l'état d'abandon de façon durable
   }
 };
 

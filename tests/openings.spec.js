@@ -40,3 +40,32 @@ test('le sélecteur affiche les classiques puis filtre, et propose le choix du c
   await page.locator('#openingResults .opening-row', { hasText: 'Sicilian' }).first().click();
   await expect(page.locator('.opening-sidechoice')).toBeVisible();
 });
+
+async function dragPiece(page, fromIndex, toIndex){
+  const f=await page.locator(`.square[data-i="${fromIndex}"]`).boundingBox();
+  const t=await page.locator(`.square[data-i="${toIndex}"]`).boundingBox();
+  await page.mouse.move(f.x+f.width/2,f.y+f.height/2);
+  await page.mouse.down();
+  await page.mouse.move(t.x+t.width/2,t.y+t.height/2,{steps:6});
+  await page.mouse.up();
+}
+const TEST_LINE = {eco:'C50', name:'Test Italienne', uci:['e2e4','e7e5','g1f3','b8c6','f1c4']};
+
+test('drill Blancs : coup juste avance, coup faux est refusé', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'w'); }, TEST_LINE);
+  await dragPiece(page, 48, 40); // a2 -> a3 (FAUX)
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBe(0);
+  await expect(page.locator('#drillFeedback')).toContainText('ligne');
+  await dragPiece(page, 52, 36); // e2 -> e4 (JUSTE) ; l'app répond e7-e5
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBe(2);
+});
+
+test('drill Noirs : l\'app joue d\'abord le coup blanc', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'b'); }, TEST_LINE);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBe(1);
+});

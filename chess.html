@@ -1395,10 +1395,72 @@ async function showOpeningPicker(){
   }
   renderOpeningRows(featuredOpenings());
 }
-// Stub remplacé en Task 4 :
-function startDrill(){}
+function drillFeedback(msg, kind){
+  const el=document.getElementById('drillFeedback');
+  el.textContent=msg||'';
+  el.className='drill-feedback'+(kind?' '+kind:'');
+}
 
-window.__trainTest={ getMode:()=>mode, loadOpenings, featuredOpenings, searchOpenings };
+function startDrill(opening, side){
+  mode='train';
+  drill={opening, side, line:opening.uci.slice(), plyIndex:0, hintLevel:0};
+  userColor=side; botColor=opp(side);
+  flipped=(userColor===BLACK);
+  state=fromFEN(START);
+  selected=null; lastMove=null; history=[]; gameOver=false; resigned=false;
+  positionCounts=new Map(); legalCache=[];
+  document.getElementById('openingPicker').classList.add('hidden');
+  document.getElementById('drillPanel').classList.remove('hidden');
+  render();
+  renderDrillPanel();
+  drillFeedback(side===WHITE?'À vous de jouer (Blancs).':'', '');
+  if(side===BLACK) setTimeout(()=>drillPlayOpponent(),300);
+}
+
+function drillPlayOpponent(){
+  if(!drill||drill.plyIndex>=drill.line.length) return;
+  const uci=drill.line[drill.plyIndex];
+  const m=legalMoves(state).find(x=>uciOf(x)===uci);
+  if(!m){ drillFeedback('Ligne incohérente avec la position.','bad'); return; }
+  state=applyMove(state,m,true);
+  drill.plyIndex++;
+  selected=null; render(); renderDrillPanel();
+  if(drill.plyIndex>=drill.line.length) drillComplete();
+  else drillFeedback('À vous de jouer.','');
+}
+
+function drillTryMove(from,to){
+  if(!drill||drill.plyIndex>=drill.line.length) return false;
+  const choices=legalCache.filter(m=>m.from===from&&m.to===to);
+  if(!choices.length) return false; // coup illégal : laisser le handler nettoyer
+  const expected=drill.line[drill.plyIndex];
+  const m=choices.find(x=>uciOf(x)===expected)||choices[0];
+  if(uciOf(m)!==expected){
+    drill.hintLevel=0;
+    selected=null; render();
+    drillFeedback('✗ Ce n\'est pas le coup de la ligne. Réessayez.','bad');
+    return true; // consommé : on ne laisse pas le handler re-render
+  }
+  state=applyMove(state,m,true);
+  drill.plyIndex++; drill.hintLevel=0;
+  selected=null; render(); renderDrillPanel();
+  if(drill.plyIndex>=drill.line.length){ drillComplete(); return true; }
+  drillFeedback('✓ Bien joué.','good');
+  setTimeout(()=>drillPlayOpponent(),250);
+  return true;
+}
+
+function renderDrillPanel(){
+  if(!drill) return;
+  document.getElementById('drillName').textContent=drill.opening.name;
+  document.getElementById('drillEco').textContent=drill.opening.eco;
+  const total=drill.line.length;
+  document.getElementById('drillProgress').textContent=`Coup ${Math.min(drill.plyIndex,total)} / ${total}`;
+}
+// Stub remplacé en Task 5 :
+function drillComplete(){ drillFeedback('✅ Ligne terminée.','good'); }
+
+window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf };
 
 function getTutorSettings(){
   return {
@@ -2030,6 +2092,7 @@ function triggerBot(){
 
 // === MOVE EXECUTION ===
 function tryMove(from,to){
+  if(mode==='train') return drillTryMove(from,to);
   if(state.turn!==userColor||botBusy||gameOver)return false;
   const choices=legalCache.filter(m=>m.from===from&&m.to===to);
   if(!choices.length)return false;

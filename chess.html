@@ -413,6 +413,32 @@
             :root { --sq: min(11.35vw, calc((100dvh - 124px)/8), 72px) }
             .board-card { padding: 14px; width: max-content; max-width: 100% }
         }
+.wims-home{display:inline-block;margin-bottom:6px;font-size:12px;color:var(--accent);text-decoration:none}
+.wims-home:hover{text-decoration:underline}
+.tutor-switch{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;cursor:pointer}
+.tutor-pane{background:rgba(255,250,242,.88);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.tutor-pane.hidden{display:none}
+.tutor-head{display:flex;justify-content:space-between;align-items:center}
+.tutor-title{font-weight:600}
+.tutor-book{font-size:13px;color:var(--muted)}
+.tutor-book.theory{color:var(--accent);font-weight:600}
+.tutor-evalrow{display:flex;align-items:center;gap:12px}
+.evalbar{position:relative;width:14px;height:90px;background:#2a2a2a;border-radius:7px;overflow:hidden}
+.evalbar-fill{position:absolute;left:0;bottom:0;width:100%;background:#f5f1ea;transition:height .3s}
+.tutor-eval{font-size:22px;font-weight:700}
+.tutor-words{font-size:13px;color:var(--muted)}
+.tutor-linelabel{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tutor-line{font-size:14px;line-height:1.5}
+.tutor-ask{padding:8px 12px;border-radius:10px;cursor:pointer}
+.tutor-ask:disabled{opacity:.45;cursor:not-allowed}
+.tutor-llm{font-size:14px;line-height:1.55;white-space:pre-wrap}
+.tutor-llm.error{color:#b3402e}
+.tutor-settings{display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(120,107,96,.25);padding-top:10px}
+.tutor-settings.hidden{display:none}
+.tutor-settings label{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.tutor-settings input,.tutor-settings select{padding:6px 8px;border-radius:8px;border:1px solid rgba(120,107,96,.4)}
+.tutor-warn{font-size:11px;color:#9a7b2e}
+.tutor-testresult{font-size:12px}
     </style>
 </head>
 <body>
@@ -428,11 +454,16 @@
         <section class="score-pane">
             <div class="score-head">
                 <div>
+                    <a id="wimsHome" class="wims-home" href="/wims/wims.cgi">← Retour à WIMS</a>
                     <div class="score-title">Scoreboard</div>
                     <div id="scoreboard" class="scoreline">0 - 0 - 0</div>
                 </div>
                 <button id="resetScores" class="reset-link">reset</button>
             </div>
+            <label class="tutor-switch">
+                <input type="checkbox" id="tutorToggle">
+                <span>🎓 Tuteur IA</span>
+            </label>
             <div class="controls" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <button id="newGame">New Game</button>
               <button id="resign" class="danger">Abandonner</button>
@@ -449,6 +480,39 @@
                 <div class="capture-box"><div id="botCaps"  class="capture-row"></div></div>
             </div>
         </aside>
+        <section id="tutorPane" class="tutor-pane hidden">
+            <div class="tutor-head">
+                <div class="tutor-title">Tuteur</div>
+                <button id="tutorSettingsBtn" class="reset-link" title="Réglages IA">⚙︎</button>
+            </div>
+            <div id="tutorBook" class="tutor-book"></div>
+            <div class="tutor-evalrow">
+                <div class="evalbar"><div id="tutorEvalFill" class="evalbar-fill"></div></div>
+                <div>
+                    <div id="tutorEval" class="tutor-eval"></div>
+                    <div id="tutorWords" class="tutor-words"></div>
+                </div>
+            </div>
+            <div class="tutor-linelabel">Meilleure ligne</div>
+            <div id="tutorLine" class="tutor-line"></div>
+            <button id="tutorAskBtn" class="tutor-ask" disabled>✨ Avis de l'IA</button>
+            <div id="tutorLLM" class="tutor-llm"></div>
+            <div id="tutorSettings" class="tutor-settings hidden">
+                <label>Clé API Claude
+                    <input type="password" id="tutorKeyInput" placeholder="sk-ant-...">
+                </label>
+                <label>Modèle
+                    <select id="tutorModelInput">
+                        <option value="claude-haiku-4-5-20251001">Haiku (économique)</option>
+                        <option value="claude-sonnet-4-6">Sonnet (qualité)</option>
+                    </select>
+                </label>
+                <button id="tutorSaveBtn">Enregistrer</button>
+                <button id="tutorTestBtn">Tester la connexion</button>
+                <div id="tutorTestResult" class="tutor-testresult"></div>
+                <div class="tutor-warn">La clé est stockée uniquement dans ce navigateur. À éviter sur un poste partagé.</div>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -1194,8 +1258,23 @@ function requestAnalysis(force){
   if((!tutorEnabled&&!force)||!worker)return;
   worker.postMessage({type:'analyze',state,history});
 }
-// Implémentation complète posée en Task 5 ; stub pour l'instant.
-function renderTutorPanel(){}
+function renderTutorPanel(){
+  const pane=document.getElementById('tutorPane');
+  if(!pane)return;
+  pane.classList.toggle('hidden',!tutorEnabled);
+  if(!tutorEnabled||!lastAnalysis)return;
+  const {evalCp,pv,isBook}=lastAnalysis;
+  const bookEl=document.getElementById('tutorBook');
+  bookEl.textContent=isBook?'📖 Coup théorique (dans le livre)':'Hors livre';
+  bookEl.className='tutor-book'+(isBook?' theory':'');
+  document.getElementById('tutorEval').textContent=formatEval(evalCp);
+  document.getElementById('tutorWords').textContent=evalToWords(evalCp);
+  // Barre : 50% = égalité ; bornée à ±600 cp pour l'affichage
+  const clamped=Math.max(-600,Math.min(600,evalCp));
+  document.getElementById('tutorEvalFill').style.height=(50+clamped/12)+'%';
+  const san=pvToSan(pv);
+  document.getElementById('tutorLine').textContent=san.length?formatPvLine(san):'—';
+}
 
 // Convertit la notation interne (lettres anglaises N,B,R,Q,K) en français (C,F,T,D,R)
 const SAN_FR={N:'C',B:'F',R:'T',Q:'D',K:'R'};
@@ -1287,6 +1366,7 @@ function startWorker(){
     botBusy=false;
     selected=null;
     render();
+    requestAnalysis();
     if(!gameOver&&state.turn===botColor)setTimeout(()=>triggerBot(),80);
   };
 }
@@ -1705,6 +1785,7 @@ function completePromo(m){
   state=applyMove(state,m,true);
   selected=null;
   render();
+  requestAnalysis();
   if(!gameOver)setTimeout(()=>triggerBot(),80);
 }
 
@@ -1731,6 +1812,7 @@ function tryMove(from,to){
   state=applyMove(state,m,true);
   selected=null;
   render();
+  requestAnalysis();
   if(!gameOver)setTimeout(()=>triggerBot(),80);
   return true;
 }
@@ -1789,6 +1871,7 @@ function startNewGame(flipColors=true){
   promoOverlay.classList.add('hidden');
   legalCache=[];
   render();
+  requestAnalysis();
   if(state.turn===botColor)setTimeout(()=>triggerBot(),160);
 }
 
@@ -1896,6 +1979,36 @@ document.addEventListener('keydown',e=>{
     render();
   }
 });
+
+// === CÂBLAGE UI TUTEUR ===
+(function wireTutor(){
+  const toggle=document.getElementById('tutorToggle');
+  const settingsBtn=document.getElementById('tutorSettingsBtn');
+  const settings=document.getElementById('tutorSettings');
+  const keyInput=document.getElementById('tutorKeyInput');
+  const modelInput=document.getElementById('tutorModelInput');
+  const saveBtn=document.getElementById('tutorSaveBtn');
+  const askBtn=document.getElementById('tutorAskBtn');
+
+  // Pré-remplir les réglages depuis localStorage
+  const s=getTutorSettings();
+  keyInput.value=s.apiKey; modelInput.value=s.model;
+  function refreshAskState(){ askBtn.disabled=!getTutorSettings().apiKey; }
+  refreshAskState();
+
+  toggle.addEventListener('change',()=>{
+    tutorEnabled=toggle.checked;
+    renderTutorPanel();
+    if(tutorEnabled)requestAnalysis();
+  });
+  settingsBtn.addEventListener('click',()=>settings.classList.toggle('hidden'));
+  saveBtn.addEventListener('click',()=>{
+    setTutorSetting('tutorApiKey',keyInput.value.trim());
+    setTutorSetting('tutorModel',modelInput.value);
+    refreshAskState();
+    settings.classList.add('hidden');
+  });
+})();
 
 startWorker();
 startNewGame(false);

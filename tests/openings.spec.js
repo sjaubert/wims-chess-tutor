@@ -14,3 +14,18 @@ test('le sélecteur de mode bascule entre partie libre et entraînement', async 
   await expect(page.locator('#trainPane')).toBeHidden();
   await expect(page.locator('.score-pane')).toBeVisible();
 });
+
+test('loadOpenings charge le catalogue et la recherche filtre', async ({ page }) => {
+  await page.goto('/chess.html');
+  const n = await page.evaluate(async () => (await window.__trainTest.loadOpenings()).length);
+  expect(n).toBeGreaterThan(1000);
+
+  const found = await page.evaluate(() =>
+    window.__trainTest.searchOpenings('ruy lopez').some(o => o.name === 'Ruy Lopez')
+  );
+  expect(found).toBe(true);
+
+  const feat = await page.evaluate(() => window.__trainTest.featuredOpenings().map(o => o.name));
+  expect(feat).toContain('Ruy Lopez');
+  expect(feat.length).toBeGreaterThan(5);
+});

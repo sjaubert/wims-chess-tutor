@@ -1306,6 +1306,40 @@ let drill=null;           // {opening, side, line:[uci], plyIndex, hintLevel}
 
 function uciOf(m){ return sqName(m.from)+sqName(m.to)+(m.promo?m.promo.toLowerCase():''); }
 
+const FEATURED_OPENINGS=['Ruy Lopez','Italian Game','Sicilian Defense','French Defense',
+  'Caro-Kann Defense','Scandinavian Defense',"Queen's Gambit Declined","King's Indian Defense",
+  'English Opening','Réti Opening','Slav Defense','Nimzo-Indian Defense'];
+
+async function loadOpenings(){
+  if(openingsData) return openingsData;
+  const res=await fetch('openings.json');
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  openingsData=await res.json();
+  return openingsData;
+}
+
+function featuredOpenings(){
+  if(!openingsData) return [];
+  const byName=new Map(openingsData.map(o=>[o.name,o]));
+  const out=[];
+  for(const name of FEATURED_OPENINGS){
+    let o=byName.get(name);
+    if(!o) o=openingsData.find(x=>x.name.startsWith(name));
+    if(o) out.push(o);
+  }
+  return out;
+}
+
+function searchOpenings(query, limit=60){
+  if(!openingsData||!query) return [];
+  const q=query.toLowerCase();
+  const out=[];
+  for(const o of openingsData){
+    if(o.name.toLowerCase().includes(q)){ out.push(o); if(out.length>=limit) break; }
+  }
+  return out;
+}
+
 function setMode(next){
   mode=next;
   const rs=document.querySelector('.right-stack');
@@ -1322,7 +1356,7 @@ function setMode(next){
 // Stub remplacé en Task 3 :
 function showOpeningPicker(){}
 
-window.__trainTest={ getMode:()=>mode };
+window.__trainTest={ getMode:()=>mode, loadOpenings, featuredOpenings, searchOpenings };
 
 function getTutorSettings(){
   return {

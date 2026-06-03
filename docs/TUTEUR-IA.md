@@ -139,7 +139,8 @@ npx playwright test tests/helpers.spec.js   # un fichier
   (indices de cases 0=a8 … 63=h1 ; ex. e2=52, e4=36).
 - Tester via le serveur HTTP (config Playwright), pas `file://` : le Web Worker est créé
   depuis un Blob et l'app charge `Performance.bin` par `fetch`.
-- `window.__tutorTest` expose les fonctions internes pour permettre `page.evaluate(...)`.
+- `window.__tutorTest` expose les fonctions internes pour permettre `page.evaluate(...)`
+  (dont `fromFEN` pour construire des positions de test, ex. désambiguïsation SAN).
   Hook `onAnalysisForTest` : callback résolu à la prochaine réponse d'analyse.
 
 ---
@@ -166,9 +167,9 @@ Aucun bug bloquant. Pistes classées :
    bot partagent le même worker (FIFO), l'analyse passe avant. *Décision actuelle : laisser
    tel quel.* Alternatives si besoin : réduire `ANALYZE_TIME_MS` ; n'analyser qu'au tour de
    l'humain ; réutiliser la recherche du bot pour l'éval ; ou un 2ᵉ worker dédié à l'analyse.
-2. **Désambiguïsation SAN** : `notation()` n'écrit pas le départ quand deux pièces visent la
-   même case (ex. devrait donner `Cbd2`). Limitation pré-existante, plus visible via les
-   variantes du tuteur. Améliorer `notation()` (et donc l'historique aussi).
+2. ~~**Désambiguïsation SAN**~~ — **FAIT** (2026-06-03). `notation()` ajoute désormais le
+   départ minimal (colonne, sinon rangée, sinon case complète) : `Cbd2`, `T1a2`. Profite
+   aussi à l'historique des coups. Tests dans `helpers.spec.js`.
 3. **Distance de mat** : `formatEval` affiche `#` sans « mat en N ». `analyzePosition`
    pourrait renvoyer la distance (à partir de `MATE - |score|`).
 4. **Badge théorique en bord de livre** : `positionInBook` teste s'il existe une

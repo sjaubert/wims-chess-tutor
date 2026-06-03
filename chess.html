@@ -2125,6 +2125,7 @@ function showPromoDialog(from,to,choices){
 function completePromo(m){
   promoOverlay.classList.add('hidden');
   pendingPromo=null;
+  pushUndoSnapshot();
   state=applyMove(state,m,true);
   selected=null;
   render();

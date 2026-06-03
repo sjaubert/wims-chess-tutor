@@ -22,3 +22,18 @@ test('annuler un coup ramène à la position de départ et désactive le bouton'
   expect(await occupied(page)).toEqual(start);             // retour au départ
   await expect(page.locator('#undoMove')).toBeDisabled();  // plus rien à annuler
 });
+
+test('annuler restaure exactement la position intermédiaire (et deux fois -> départ)', async ({ page }) => {
+  await page.goto('/chess.html');
+  const start = await occupied(page);
+  await dragPiece(page, 52, 36); // 1) e2-e4
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  const afterMove1 = await occupied(page); // votre trait après coup 1 + réponse bot
+  await dragPiece(page, 51, 35); // 2) d2-d4
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  await page.locator('#undoMove').click(); // annule le coup 2 -> revient à afterMove1
+  expect(await occupied(page)).toEqual(afterMove1);
+  await page.locator('#undoMove').click(); // annule le coup 1 -> départ
+  expect(await occupied(page)).toEqual(start);
+  await expect(page.locator('#undoMove')).toBeDisabled();
+});

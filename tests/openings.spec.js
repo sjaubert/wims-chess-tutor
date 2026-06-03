@@ -108,3 +108,15 @@ test('Explique cette ouverture appelle Claude et affiche la réponse', async ({ 
   await page.locator('#drillExplainBtn').click();
   await expect(page.locator('#drillExplain')).toContainText('Italienne', { timeout: 5000 });
 });
+
+test('parcours réel : choisir Ruy Lopez via l\'UI, jouer les Blancs, 1er coup juste', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.locator('#modeTrain').click();
+  const row = page.locator('#openingResults .opening-row', { hasText: 'Ruy Lopez' }).first();
+  await expect(row).toBeVisible({ timeout: 5000 });
+  await row.click();
+  await page.locator('.opening-sidechoice button', { hasText: 'Blancs' }).click();
+  await expect(page.locator('#drillName')).toHaveText('Ruy Lopez');
+  await dragPiece(page, 52, 36); // e2 -> e4 (1er coup de la Ruy Lopez)
+  await expect(page.locator('#drillFeedback')).toContainText('Bien joué', { timeout: 4000 });
+});

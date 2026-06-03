@@ -1521,6 +1521,14 @@ function continueInFreePlay(){
 }
 
 window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf, buildOpeningPrompt };
+// Seam de test : jouer un coup pour le camp au trait, sans déclencher le bot.
+window.__gameTest={ playUci:(uci)=>{
+  const m=legalMoves(state).find(x=>uciOf(x)===uci);
+  if(!m) return false;
+  state=applyMove(state,m,true);
+  selected=null; render();
+  return true;
+} };
 
 function getTutorSettings(){
   return {
@@ -2249,6 +2257,7 @@ function startNewGame(flipColors=true){
   botBusy=false;gameOver=false;scoredThisGame=false;resigned=false;undoStack=[];
   pendingPromo=null;
   positionCounts=new Map();
+  positionCounts.set(posKey(state),1); // la position de départ compte comme 1re occurrence
   promoOverlay.classList.add('hidden');
   legalCache=[];
   render();

@@ -1307,6 +1307,58 @@ function formatPvLine(sanList, startState){
   return parts.join(' ');
 }
 
+function buildLLMPrompt(analysis){
+  const a=analysis||lastAnalysis||{evalCp:0,pv:[],isBook:false};
+  const movesSan=history.map(h=>toFrenchSAN(h.notation)).join(' ')||'(aucun)';
+  const trait=state.turn===WHITE?'aux Blancs':'aux Noirs';
+  const ligne=a.pv&&a.pv.length?formatPvLine(pvToSan(a.pv)):'(aucune)';
+  return [
+    "Voici une partie d'échecs en cours. Analyse fournie par le moteur (fais-lui confiance) :",
+    "- Coups joués : "+movesSan,
+    "- Trait : "+trait,
+    "- Évaluation moteur (point de vue des Blancs) : "+formatEval(a.evalCp)+" ("+evalToWords(a.evalCp)+")",
+    "- Meilleure ligne : "+ligne,
+    "- Position "+(a.isBook?"encore dans la théorie d'ouverture : coup théorique (livre)":"hors théorie connue")+".",
+    "",
+    "Explique au joueur débutant, en 3 à 5 phrases en français, où en est la partie et quel plan suivre.",
+    "Appuie-toi sur l'évaluation et la meilleure ligne ci-dessus ; n'invente pas d'autres coups."
+  ].join('\n');
+}
+
+async function askLLM(){
+  const out=document.getElementById('tutorLLM');
+  const {apiKey,model}=getTutorSettings();
+  if(!apiKey){ out.className='tutor-llm error'; out.textContent='Aucune clé API configurée.'; return; }
+  out.className='tutor-llm'; out.textContent='Réflexion de l’IA…';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model, max_tokens:400,
+        system:"Tu es un entraîneur d'échecs bienveillant qui s'adresse à un débutant en français. Tu t'appuies STRICTEMENT sur l'analyse du moteur fournie ; tu n'inventes pas de coups et restes cohérent avec l'évaluation donnée.",
+        messages:[{role:'user',content:buildLLMPrompt(lastAnalysis)}]
+      })
+    });
+    const data=await res.json();
+    if(!res.ok){
+      out.className='tutor-llm error';
+      out.textContent='Erreur IA : '+((data&&data.error&&data.error.message)||res.status);
+      return;
+    }
+    const text=(data&&data.content&&data.content[0]&&data.content[0].text)||'(réponse vide)';
+    out.className='tutor-llm'; out.textContent=text;
+  }catch(e){
+    out.className='tutor-llm error';
+    out.textContent='Connexion impossible : '+e.message;
+  }
+}
+
 const MATE_THRESHOLD=999000; // au-delà : il s'agit d'un mat
 
 // cp est exprimé du point de vue des Blancs (positif = avantage blancs)
@@ -1330,7 +1382,7 @@ function evalToWords(cp){
 }
 
 // Exposé uniquement pour les tests automatisés
-window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis, pvToSan, formatPvLine };
+window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis, pvToSan, formatPvLine, buildLLMPrompt };
 
 // === WEB WORKER ===
 function sendBookToWorker(){
@@ -2007,6 +2059,24 @@ document.addEventListener('keydown',e=>{
     setTutorSetting('tutorModel',modelInput.value);
     refreshAskState();
     settings.classList.add('hidden');
+  });
+  askBtn.addEventListener('click',askLLM);
+  const testBtn=document.getElementById('tutorTestBtn');
+  const testResult=document.getElementById('tutorTestResult');
+  testBtn.addEventListener('click',async()=>{
+    setTutorSetting('tutorApiKey',keyInput.value.trim());
+    setTutorSetting('tutorModel',modelInput.value);
+    refreshAskState();
+    testResult.textContent='Test…';
+    const {apiKey,model}=getTutorSettings();
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'content-type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model,max_tokens:8,messages:[{role:'user',content:'ping'}]})
+      });
+      testResult.textContent=res.ok?'✓ Connexion OK':'✗ Erreur '+res.status;
+    }catch(e){ testResult.textContent='✗ '+e.message; }
   });
 })();
 

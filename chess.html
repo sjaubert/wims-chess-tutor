@@ -1132,8 +1132,30 @@ function setTutorSetting(key,value){
   localStorage.setItem(key,value);
 }
 
+const MATE_THRESHOLD=999000; // au-delà : il s'agit d'un mat
+
+// cp est exprimé du point de vue des Blancs (positif = avantage blancs)
+function formatEval(cp){
+  if(cp>=MATE_THRESHOLD)return '#';
+  if(cp<=-MATE_THRESHOLD)return '−#';
+  const pawns=cp/100;
+  const sign=pawns>0?'+':(pawns<0?'−':'');
+  return sign+Math.abs(pawns).toFixed(1).replace('.',',');
+}
+
+function evalToWords(cp){
+  if(cp>=MATE_THRESHOLD)return 'Mat pour les Blancs';
+  if(cp<=-MATE_THRESHOLD)return 'Mat pour les Noirs';
+  const a=Math.abs(cp);
+  if(a<30)return 'position égale';
+  const camp=cp>0?'Blancs':'Noirs';
+  if(a<90)return 'léger avantage aux '+camp;
+  if(a<250)return 'avantage aux '+camp;
+  return 'avantage décisif aux '+camp;
+}
+
 // Exposé uniquement pour les tests automatisés
-window.__tutorTest={ getTutorSettings, setTutorSetting };
+window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords };
 
 // === WEB WORKER ===
 function sendBookToWorker(){

@@ -69,3 +69,21 @@ test('drill Noirs : l\'app joue d\'abord le coup blanc', async ({ page }) => {
   await page.waitForTimeout(500);
   expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBe(1);
 });
+
+test('Indice surligne la pièce à jouer', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'w'); }, TEST_LINE);
+  await page.locator('#drillHintBtn').click();
+  await expect(page.locator('.square[data-i="52"]')).toHaveClass(/hint-from/);
+});
+
+test('fin de ligne : message de réussite + Continuer en partie libre', async ({ page }) => {
+  await page.goto('/chess.html');
+  const shortLine = {eco:'C20', name:'Test court', uci:['e2e4','e7e5']};
+  await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'w'); }, shortLine);
+  await dragPiece(page, 52, 36); // e2 -> e4 ; l'app répond e7-e5 -> fin
+  await expect(page.locator('#drillFeedback')).toContainText('terminée', { timeout: 4000 });
+  await expect(page.locator('#drillToFree')).toBeVisible();
+  await page.locator('#drillToFree').click();
+  expect(await page.evaluate(()=>window.__trainTest.getMode())).toBe('play');
+});

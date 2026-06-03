@@ -1403,6 +1403,9 @@ function drillFeedback(msg, kind){
 
 function startDrill(opening, side){
   mode='train';
+  document.querySelector('.right-stack').classList.add('train');
+  document.getElementById('modePlay').classList.remove('active');
+  document.getElementById('modeTrain').classList.add('active');
   drill={opening, side, line:opening.uci.slice(), plyIndex:0, hintLevel:0};
   userColor=side; botColor=opp(side);
   flipped=(userColor===BLACK);
@@ -1411,6 +1414,8 @@ function startDrill(opening, side){
   positionCounts=new Map(); legalCache=[];
   document.getElementById('openingPicker').classList.add('hidden');
   document.getElementById('drillPanel').classList.remove('hidden');
+  document.getElementById('drillToFree').classList.add('hidden');
+  document.getElementById('drillExplain').textContent='';
   render();
   renderDrillPanel();
   drillFeedback(side===WHITE?'À vous de jouer (Blancs).':'', '');
@@ -1457,8 +1462,32 @@ function renderDrillPanel(){
   const total=drill.line.length;
   document.getElementById('drillProgress').textContent=`Coup ${Math.min(drill.plyIndex,total)} / ${total}`;
 }
-// Stub remplacé en Task 5 :
-function drillComplete(){ drillFeedback('✅ Ligne terminée.','good'); }
+function drillHint(){
+  if(!drill||drill.plyIndex>=drill.line.length) return;
+  const uci=drill.line[drill.plyIndex];
+  const from=sqIndex(uci.slice(0,2)), to=sqIndex(uci.slice(2,4));
+  drill.hintLevel=(drill.hintLevel||0)+1;
+  document.querySelectorAll('.square').forEach(s=>s.classList.remove('hint-from','hint-to'));
+  const fromEl=document.querySelector(`.square[data-i="${from}"]`); if(fromEl)fromEl.classList.add('hint-from');
+  if(drill.hintLevel>=2){ const toEl=document.querySelector(`.square[data-i="${to}"]`); if(toEl)toEl.classList.add('hint-to'); }
+}
+
+function drillComplete(){
+  renderDrillPanel();
+  drillFeedback('✅ Ligne terminée — vous maîtrisez '+drill.opening.name+'.','good');
+  document.getElementById('drillToFree').classList.remove('hidden');
+}
+
+function continueInFreePlay(){
+  mode='play';
+  drill=null;
+  document.querySelector('.right-stack').classList.remove('train');
+  document.getElementById('modePlay').classList.add('active');
+  document.getElementById('modeTrain').classList.remove('active');
+  gameOver=false; botBusy=false;
+  render();
+  if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
+}
 
 window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf };
 
@@ -2326,6 +2355,10 @@ document.getElementById('openingSearch').addEventListener('input',e=>{
   const q=e.target.value.trim();
   renderOpeningRows(q.length>=2?searchOpenings(q):featuredOpenings());
 });
+document.getElementById('drillHintBtn').addEventListener('click',drillHint);
+document.getElementById('drillRestart').addEventListener('click',()=>{ if(drill) startDrill(drill.opening, drill.side); });
+document.getElementById('drillChange').addEventListener('click',()=>showOpeningPicker());
+document.getElementById('drillToFree').addEventListener('click',continueInFreePlay);
 
 startWorker();
 startNewGame(false);

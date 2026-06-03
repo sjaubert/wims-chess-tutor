@@ -37,6 +37,26 @@ test('Avis de l\'IA : appelle l\'API Claude et affiche la réponse', async ({ pa
   expect(JSON.stringify(captured)).toContain('Meilleure ligne');
 });
 
+test('le texte de l\'IA (tuteur) défile quand il est long', async ({ page }) => {
+  const long = Array.from({length:40},(_,i)=>'Ligne d\'analyse '+(i+1)+' assez longue pour remplir le panneau.').join('\n');
+  await page.route('https://api.anthropic.com/**', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ content: [{ type:'text', text: long }] })
+  }));
+  await page.goto('/chess.html');
+  await page.evaluate(() => localStorage.setItem('tutorApiKey','sk-ant-test'));
+  await page.reload();
+  await page.locator('#tutorToggle').click();
+  await page.locator('#tutorAskBtn').click();
+  await expect(page.locator('#tutorLLM')).toContainText('Ligne d\'analyse 1', { timeout: 5000 });
+  const r = await page.evaluate(() => {
+    const el = document.getElementById('tutorLLM');
+    return { scrollable: el.scrollHeight > el.clientHeight + 5, oy: getComputedStyle(el).overflowY };
+  });
+  expect(r.scrollable).toBe(true);            // le contenu dépasse -> défilement interne
+  expect(['auto','scroll']).toContain(r.oy);  // overflow scrollable
+});
+
 test('Avis de l\'IA : erreur API affichée proprement', async ({ page }) => {
   await page.route('https://api.anthropic.com/**', route => route.fulfill({
     status: 401,

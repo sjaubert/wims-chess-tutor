@@ -87,3 +87,24 @@ test('fin de ligne : message de réussite + Continuer en partie libre', async ({
   await page.locator('#drillToFree').click();
   expect(await page.evaluate(()=>window.__trainTest.getMode())).toBe('play');
 });
+
+test('buildOpeningPrompt mentionne le nom et les coups', async ({ page }) => {
+  await page.goto('/chess.html');
+  const prompt = await page.evaluate((op) =>
+    window.__trainTest.buildOpeningPrompt(op), TEST_LINE);
+  expect(prompt).toContain('Test Italienne');
+  expect(prompt).toContain('1.e4');
+});
+
+test('Explique cette ouverture appelle Claude et affiche la réponse', async ({ page }) => {
+  await page.route('https://api.anthropic.com/**', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ content: [{ type:'text', text:'L\'Italienne vise un développement rapide.' }] })
+  }));
+  await page.goto('/chess.html');
+  await page.evaluate(() => { localStorage.setItem('tutorApiKey','sk-ant-test'); });
+  await page.reload();
+  await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'w'); }, TEST_LINE);
+  await page.locator('#drillExplainBtn').click();
+  await expect(page.locator('#drillExplain')).toContainText('Italienne', { timeout: 5000 });
+});

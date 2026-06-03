@@ -1416,6 +1416,7 @@ function startDrill(opening, side){
   document.getElementById('drillPanel').classList.remove('hidden');
   document.getElementById('drillToFree').classList.add('hidden');
   document.getElementById('drillExplain').textContent='';
+  document.getElementById('drillExplainBtn').disabled=!getTutorSettings().apiKey;
   render();
   renderDrillPanel();
   drillFeedback(side===WHITE?'À vous de jouer (Blancs).':'', '');
@@ -1462,6 +1463,33 @@ function renderDrillPanel(){
   const total=drill.line.length;
   document.getElementById('drillProgress').textContent=`Coup ${Math.min(drill.plyIndex,total)} / ${total}`;
 }
+
+function buildOpeningPrompt(opening){
+  const san=pvToSan(opening.uci, fromFEN(START));
+  const ligne=formatPvLine(san, fromFEN(START));
+  return [
+    "Ouverture d'échecs : « "+opening.name+" » (code ECO "+opening.eco+").",
+    "Ligne : "+ligne,
+    "",
+    "Explique à un débutant, en 3 à 5 phrases en français : l'idée générale de cette ouverture,",
+    "les plans typiques pour les deux camps, et un piège ou point d'attention courant.",
+    "Reste cohérent avec la ligne ci-dessus ; n'invente pas d'autres variantes."
+  ].join('\n');
+}
+
+async function explainOpening(){
+  const out=document.getElementById('drillExplain');
+  if(!drill) return;
+  const {apiKey}=getTutorSettings();
+  if(!apiKey){ out.className='drill-explain error'; out.textContent='Aucune clé API configurée (réglages du tuteur).'; return; }
+  out.className='drill-explain'; out.textContent='Réflexion de l’IA…';
+  try{
+    out.textContent=await claudeComplete(
+      "Tu es un entraîneur d'échecs bienveillant qui explique les ouvertures à un débutant, en français, de façon concise et concrète.",
+      buildOpeningPrompt(drill.opening));
+  }catch(e){ out.className='drill-explain error'; out.textContent='Erreur IA : '+e.message; }
+}
+
 function drillHint(){
   if(!drill||drill.plyIndex>=drill.line.length) return;
   const uci=drill.line[drill.plyIndex];
@@ -1489,7 +1517,7 @@ function continueInFreePlay(){
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }
 
-window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf };
+window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf, buildOpeningPrompt };
 
 function getTutorSettings(){
   return {
@@ -1572,39 +1600,30 @@ function buildLLMPrompt(analysis){
   ].join('\n');
 }
 
+// Helper partagé : un appel à l'API Claude. Renvoie le texte ou lève une erreur.
+async function claudeComplete(systemText, userText){
+  const {apiKey,model}=getTutorSettings();
+  if(!apiKey) throw new Error('Aucune clé API configurée.');
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({ model, max_tokens:400, system:systemText, messages:[{role:'user',content:userText}] })
+  });
+  let data=null; try{ data=await res.json(); }catch(_){/* corps non-JSON */}
+  if(!res.ok) throw new Error((data&&data.error&&data.error.message)||('HTTP '+res.status));
+  return (data&&data.content&&data.content[0]&&data.content[0].text)||'(réponse vide)';
+}
+
 async function askLLM(){
   const out=document.getElementById('tutorLLM');
-  const {apiKey,model}=getTutorSettings();
+  const {apiKey}=getTutorSettings();
   if(!apiKey){ out.className='tutor-llm error'; out.textContent='Aucune clé API configurée.'; return; }
   out.className='tutor-llm'; out.textContent='Réflexion de l’IA…';
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'content-type':'application/json',
-        'x-api-key':apiKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model, max_tokens:400,
-        system:"Tu es un entraîneur d'échecs bienveillant qui s'adresse à un débutant en français. Tu t'appuies STRICTEMENT sur l'analyse du moteur fournie ; tu n'inventes pas de coups et restes cohérent avec l'évaluation donnée.",
-        messages:[{role:'user',content:buildLLMPrompt(lastAnalysis)}]
-      })
-    });
-    let data=null;
-    try{ data=await res.json(); }catch(_){/* corps non-JSON (ex. erreur passerelle HTML) */}
-    if(!res.ok){
-      out.className='tutor-llm error';
-      out.textContent='Erreur IA : '+((data&&data.error&&data.error.message)||res.status);
-      return;
-    }
-    const text=(data&&data.content&&data.content[0]&&data.content[0].text)||'(réponse vide)';
-    out.className='tutor-llm'; out.textContent=text;
-  }catch(e){
-    out.className='tutor-llm error';
-    out.textContent='Connexion impossible : '+e.message;
-  }
+    out.textContent=await claudeComplete(
+      "Tu es un entraîneur d'échecs bienveillant qui s'adresse à un débutant en français. Tu t'appuies STRICTEMENT sur l'analyse du moteur fournie ; tu n'inventes pas de coups et restes cohérent avec l'évaluation donnée.",
+      buildLLMPrompt(lastAnalysis));
+  }catch(e){ out.className='tutor-llm error'; out.textContent='Erreur IA : '+e.message; }
 }
 
 const MATE_THRESHOLD=999000; // au-delà : il s'agit d'un mat
@@ -2359,6 +2378,7 @@ document.getElementById('drillHintBtn').addEventListener('click',drillHint);
 document.getElementById('drillRestart').addEventListener('click',()=>{ if(drill) startDrill(drill.opening, drill.side); });
 document.getElementById('drillChange').addEventListener('click',()=>showOpeningPicker());
 document.getElementById('drillToFree').addEventListener('click',continueInFreePlay);
+document.getElementById('drillExplainBtn').addEventListener('click',explainOpening);
 
 startWorker();
 startNewGame(false);

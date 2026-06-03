@@ -1076,11 +1076,69 @@ function bestBotMove(s,history){
   return best;
 }
 
+const ANALYZE_TIME_MS=700, ANALYZE_DEPTH=6;
+
+// La position courante est-elle encore dans la théorie connue ?
+// openingBookMove renvoie un coup si la position est dans le livre, sinon null.
+function positionInBook(s,history){
+  return openingBookMove(s,history||[])!==null;
+}
+
+// Variante principale par parcours de la table de transposition
+function extractPV(s,firstMove,maxLen){
+  const pv=[]; let cur=s, mv=firstMove, guard=0;
+  while(mv&&pv.length<maxLen&&guard++<40){
+    pv.push(sqName(mv.from)+sqName(mv.to)+(mv.promo?mv.promo.toLowerCase():''));
+    cur=applyMove(cur,mv,false);
+    const ent=tt.get(posKey(cur));
+    if(!ent||!ent.best)break;
+    const lm=legalMoves(cur);
+    const nm=lm.find(x=>x.from===ent.best.from&&x.to===ent.best.to&&(x.promo||null)===(ent.best.promo||null));
+    if(!nm)break;
+    mv=nm;
+  }
+  return pv;
+}
+
+function analyzePosition(s,history){
+  const inBook=positionInBook(s,history);
+  const moves=legalMoves(s);
+  if(!moves.length){
+    const mated=inCheck(s,s.turn);
+    const evalCp=mated?(s.turn===WHITE?-MATE:MATE):0;
+    return {evalCp,pv:[],isBook:inBook,gameOver:true};
+  }
+  tt=new Map();deadline=performance.now()+ANALYZE_TIME_MS;
+  let best=moves[0],bestScore=-Infinity;
+  for(let depth=1;depth<=ANALYZE_DEPTH;depth++){
+    try{
+      const rootKey=posKey(s),ent=tt.get(rootKey);
+      moves.sort((a,b)=>moveOrderScore(s,b,ent?.best)-moveOrderScore(s,a,ent?.best));
+      let alpha=-Infinity,beta=Infinity,localBest=best,localScore=-Infinity;
+      for(const m of moves){
+        const sc=-negamax(applyMove(s,m,false),depth-1,-beta,-alpha,1);
+        if(sc>localScore){localScore=sc;localBest=m;}
+        if(sc>alpha)alpha=sc;
+      }
+      best=localBest;bestScore=localScore;
+      if(Math.abs(bestScore)>MATE-1000)break;
+    }catch(e){break;}
+  }
+  const evalCp=s.turn===WHITE?bestScore:-bestScore;
+  const pv=extractPV(s,best,8);
+  return {evalCp,pv,isBook:inBook,gameOver:false};
+}
+
 self.onmessage=function(e){
   if(e.data&&e.data.type==='init'){
     workerBookData=new Uint8Array(e.data.bookData);
     workerPolyRands=initPolyglotRandoms();
     self.postMessage({type:'bookReady',count:Math.floor(workerBookData.length/16)});
+    return;
+  }
+  if(e.data&&e.data.type==='analyze'){
+    const a=analyzePosition(e.data.state,e.data.history);
+    self.postMessage({type:'analysis',...a});
     return;
   }
   const{state,history}=e.data;
@@ -1132,6 +1190,13 @@ function setTutorSetting(key,value){
   localStorage.setItem(key,value);
 }
 
+function requestAnalysis(force){
+  if((!tutorEnabled&&!force)||!worker)return;
+  worker.postMessage({type:'analyze',state,history});
+}
+// Implémentation complète posée en Task 5 ; stub pour l'instant.
+function renderTutorPanel(){}
+
 const MATE_THRESHOLD=999000; // au-delà : il s'agit d'un mat
 
 // cp est exprimé du point de vue des Blancs (positif = avantage blancs)
@@ -1155,7 +1220,7 @@ function evalToWords(cp){
 }
 
 // Exposé uniquement pour les tests automatisés
-window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords };
+window.__tutorTest={ getTutorSettings, setTutorSetting, formatEval, evalToWords, requestAnalysis };
 
 // === WEB WORKER ===
 function sendBookToWorker(){
@@ -1174,6 +1239,16 @@ function startWorker(){
     }
     if(e.data&&e.data.type==='bookReady'){
       updateBookStatus(e.data.count);
+      return;
+    }
+    if(e.data&&e.data.type==='analysis'){
+      lastAnalysis=e.data;
+      if(window.__tutorTest&&window.__tutorTest.onAnalysisForTest){
+        const cb=window.__tutorTest.onAnalysisForTest;
+        window.__tutorTest.onAnalysisForTest=null;
+        cb(e.data);
+      }
+      renderTutorPanel();
       return;
     }
     const m=e.data;

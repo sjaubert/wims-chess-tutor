@@ -1202,7 +1202,9 @@ self.onmessage=function(e){
   }
   if(e.data&&e.data.type==='analyze'){
     const a=analyzePosition(e.data.state,e.data.history);
-    self.postMessage({type:'analysis',...a});
+    // On renvoie aussi la position analysée : renderTutorPanel rejoue la variante
+    // sur CETTE position, pas sur l'état courant (robuste si l'état a avancé entretemps).
+    self.postMessage({type:'analysis',...a,fromState:e.data.state});
     return;
   }
   const{state,history}=e.data;
@@ -1272,8 +1274,8 @@ function renderTutorPanel(){
   // Barre : 50% = égalité ; bornée à ±600 cp pour l'affichage
   const clamped=Math.max(-600,Math.min(600,evalCp));
   document.getElementById('tutorEvalFill').style.height=(50+clamped/12)+'%';
-  const san=pvToSan(pv);
-  document.getElementById('tutorLine').textContent=san.length?formatPvLine(san):'—';
+  const san=pvToSan(pv,lastAnalysis.fromState);
+  document.getElementById('tutorLine').textContent=san.length?formatPvLine(san,lastAnalysis.fromState):'—';
 }
 
 // Convertit la notation interne (lettres anglaises N,B,R,Q,K) en français (C,F,T,D,R)
@@ -1311,7 +1313,7 @@ function buildLLMPrompt(analysis){
   const a=analysis||lastAnalysis||{evalCp:0,pv:[],isBook:false};
   const movesSan=history.map(h=>toFrenchSAN(h.notation)).join(' ')||'(aucun)';
   const trait=state.turn===WHITE?'aux Blancs':'aux Noirs';
-  const ligne=a.pv&&a.pv.length?formatPvLine(pvToSan(a.pv)):'(aucune)';
+  const ligne=a.pv&&a.pv.length?formatPvLine(pvToSan(a.pv,a.fromState),a.fromState):'(aucune)';
   return [
     "Voici une partie d'échecs en cours. Analyse fournie par le moteur (fais-lui confiance) :",
     "- Coups joués : "+movesSan,
@@ -1345,7 +1347,8 @@ async function askLLM(){
         messages:[{role:'user',content:buildLLMPrompt(lastAnalysis)}]
       })
     });
-    const data=await res.json();
+    let data=null;
+    try{ data=await res.json(); }catch(_){/* corps non-JSON (ex. erreur passerelle HTML) */}
     if(!res.ok){
       out.className='tutor-llm error';
       out.textContent='Erreur IA : '+((data&&data.error&&data.error.message)||res.status);

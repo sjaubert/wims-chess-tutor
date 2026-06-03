@@ -439,6 +439,35 @@
 .tutor-settings input,.tutor-settings select{padding:6px 8px;border-radius:8px;border:1px solid rgba(120,107,96,.4)}
 .tutor-warn{font-size:11px;color:#9a7b2e}
 .tutor-testresult{font-size:12px}
+.right-stack{display:flex;flex-direction:column}
+.right-stack .side{flex:1 1 auto}
+.right-stack.train .score-pane,.right-stack.train .side,.right-stack.train #tutorPane{display:none}
+.right-stack:not(.train) #trainPane{display:none}
+.mode-switch{display:flex;gap:8px}
+.mode-btn{flex:1;padding:8px 10px;border-radius:10px;border:1px solid rgba(120,107,96,.4);background:rgba(255,250,242,.7);cursor:pointer;font-size:13px}
+.mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.train-pane{background:rgba(255,250,242,.88);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;overflow:auto}
+.train-title{font-weight:600}
+#openingSearch{padding:8px 10px;border-radius:10px;border:1px solid rgba(120,107,96,.4)}
+.opening-results{display:flex;flex-direction:column;gap:4px;overflow:auto;max-height:calc(var(--board) - 60px)}
+.opening-row{text-align:left;padding:8px 10px;border-radius:8px;border:1px solid rgba(120,107,96,.25);background:#fff;cursor:pointer;font-size:13px}
+.opening-row:hover{border-color:var(--accent)}
+.opening-row .eco{color:var(--muted);font-size:11px;margin-right:6px}
+.opening-row .moves{color:var(--muted);font-size:11px}
+.opening-sidechoice{display:flex;gap:8px;margin-top:4px}
+.drill-eco{color:var(--muted);font-weight:400;font-size:13px}
+.drill-progress{font-size:13px;color:var(--muted)}
+.drill-feedback{font-size:14px;min-height:1.4em}
+.drill-feedback.good{color:var(--accent)}
+.drill-feedback.bad{color:#b3402e}
+.drill-btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(120,107,96,.4);background:rgba(255,250,242,.8);cursor:pointer;font-size:13px}
+.drill-btn:disabled{opacity:.45;cursor:not-allowed}
+.drill-actions{display:flex;flex-wrap:wrap;gap:8px}
+.drill-explain{font-size:14px;line-height:1.55;white-space:pre-wrap}
+.drill-explain.error{color:#b3402e}
+.hint-from{box-shadow:inset 0 0 0 4px rgba(83,107,70,.9)}
+.hint-to{box-shadow:inset 0 0 0 4px rgba(83,107,70,.55)}
+.square.hint-from, .square.hint-to{position:relative}
     </style>
 </head>
 <body>
@@ -451,6 +480,10 @@
         <div id="board"></div>
     </section>
     <div class="right-stack">
+        <div class="mode-switch">
+            <button id="modePlay" class="mode-btn active">Partie libre</button>
+            <button id="modeTrain" class="mode-btn">Entraînement ouvertures</button>
+        </div>
         <section class="score-pane">
             <div class="score-head">
                 <div>
@@ -511,6 +544,26 @@
                 <button id="tutorTestBtn">Tester la connexion</button>
                 <div id="tutorTestResult" class="tutor-testresult"></div>
                 <div class="tutor-warn">La clé est stockée uniquement dans ce navigateur. À éviter sur un poste partagé.</div>
+            </div>
+        </section>
+        <section id="trainPane" class="train-pane">
+            <div id="openingPicker" class="opening-picker">
+                <div class="train-title">Choisir une ouverture</div>
+                <input id="openingSearch" type="search" placeholder="Rechercher une ouverture…">
+                <div id="openingResults" class="opening-results"></div>
+            </div>
+            <div id="drillPanel" class="drill-panel hidden">
+                <div class="train-title"><span id="drillName"></span> <span id="drillEco" class="drill-eco"></span></div>
+                <div id="drillProgress" class="drill-progress"></div>
+                <div id="drillFeedback" class="drill-feedback"></div>
+                <button id="drillHintBtn" class="drill-btn">Indice</button>
+                <button id="drillExplainBtn" class="drill-btn" disabled>💡 Explique cette ouverture</button>
+                <div id="drillExplain" class="drill-explain"></div>
+                <div class="drill-actions">
+                    <button id="drillRestart" class="drill-btn">Recommencer</button>
+                    <button id="drillChange" class="drill-btn">Changer d'ouverture</button>
+                    <button id="drillToFree" class="drill-btn hidden">Continuer en partie libre</button>
+                </div>
             </div>
         </section>
     </div>
@@ -1245,6 +1298,31 @@ let bookData=null; // Uint8Array du fichier .bin Polyglot chargé
 let tutorEnabled=false;          // interrupteur du tuteur
 let lastAnalysis=null;           // dernier résultat d'analyse {evalCp, pv, isBook}
 const TUTOR_DEFAULT_MODEL='claude-haiku-4-5-20251001';
+
+// === ENTRAÎNEMENT OUVERTURES : état ===
+let mode='play';          // 'play' | 'train'
+let openingsData=null;    // cache du catalogue chargé
+let drill=null;           // {opening, side, line:[uci], plyIndex, hintLevel}
+
+function uciOf(m){ return sqName(m.from)+sqName(m.to)+(m.promo?m.promo.toLowerCase():''); }
+
+function setMode(next){
+  mode=next;
+  const rs=document.querySelector('.right-stack');
+  rs.classList.toggle('train', next==='train');
+  document.getElementById('modePlay').classList.toggle('active', next==='play');
+  document.getElementById('modeTrain').classList.toggle('active', next==='train');
+  if(next==='play'){
+    drill=null;
+    startNewGame(false);
+  } else {
+    showOpeningPicker();
+  }
+}
+// Stub remplacé en Task 3 :
+function showOpeningPicker(){}
+
+window.__trainTest={ getMode:()=>mode };
 
 function getTutorSettings(){
   return {
@@ -2101,6 +2179,10 @@ document.addEventListener('keydown',e=>{
     }catch(e){ testResult.textContent='✗ '+e.message; }
   });
 })();
+
+// === CÂBLAGE MODE / ENTRAÎNEMENT ===
+document.getElementById('modePlay').addEventListener('click',()=>setMode('play'));
+document.getElementById('modeTrain').addEventListener('click',()=>setMode('train'));
 
 startWorker();
 startNewGame(false);

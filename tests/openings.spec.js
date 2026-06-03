@@ -29,3 +29,14 @@ test('loadOpenings charge le catalogue et la recherche filtre', async ({ page })
   expect(feat).toContain('Ruy Lopez');
   expect(feat.length).toBeGreaterThan(5);
 });
+
+test('le sélecteur affiche les classiques puis filtre, et propose le choix du camp', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.locator('#modeTrain').click();
+  await expect(page.locator('#openingResults .opening-row').first()).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#openingResults')).toContainText('Ruy Lopez');
+  await page.locator('#openingSearch').fill('sicilian');
+  await expect(page.locator('#openingResults')).toContainText('Sicilian', { timeout: 5000 });
+  await page.locator('#openingResults .opening-row', { hasText: 'Sicilian' }).first().click();
+  await expect(page.locator('.opening-sidechoice')).toBeVisible();
+});

@@ -1353,8 +1353,50 @@ function setMode(next){
     showOpeningPicker();
   }
 }
-// Stub remplacé en Task 3 :
-function showOpeningPicker(){}
+function openingMovesPreview(o){
+  // aperçu en notation française des 3 premiers demi-coups
+  const san=pvToSan(o.uci.slice(0,3), fromFEN(START));
+  return formatPvLine(san, fromFEN(START));
+}
+
+function renderOpeningRows(list){
+  const box=document.getElementById('openingResults');
+  box.innerHTML='';
+  for(const o of list){
+    const row=document.createElement('div');
+    row.className='opening-row';
+    row.innerHTML=`<span class="eco">${o.eco}</span>${o.name}<div class="moves">${openingMovesPreview(o)}</div>`;
+    row.addEventListener('click',()=>askSideThenStart(o,row));
+    box.appendChild(row);
+  }
+}
+
+function askSideThenStart(o,row){
+  document.querySelectorAll('.opening-sidechoice').forEach(e=>e.remove());
+  const choice=document.createElement('div');
+  choice.className='opening-sidechoice';
+  const wb=document.createElement('button'); wb.className='drill-btn'; wb.textContent='Jouer les Blancs';
+  const bb=document.createElement('button'); bb.className='drill-btn'; bb.textContent='Jouer les Noirs';
+  wb.addEventListener('click',e=>{e.stopPropagation();startDrill(o,WHITE);});
+  bb.addEventListener('click',e=>{e.stopPropagation();startDrill(o,BLACK);});
+  choice.append(wb,bb);
+  row.after(choice);
+}
+
+async function showOpeningPicker(){
+  document.getElementById('openingPicker').classList.remove('hidden');
+  document.getElementById('drillPanel').classList.add('hidden');
+  const box=document.getElementById('openingResults');
+  try{
+    await loadOpenings();
+  }catch(e){
+    box.innerHTML='<div class="drill-feedback bad">Catalogue indisponible ('+e.message+').</div>';
+    return;
+  }
+  renderOpeningRows(featuredOpenings());
+}
+// Stub remplacé en Task 4 :
+function startDrill(){}
 
 window.__trainTest={ getMode:()=>mode, loadOpenings, featuredOpenings, searchOpenings };
 
@@ -2217,6 +2259,10 @@ document.addEventListener('keydown',e=>{
 // === CÂBLAGE MODE / ENTRAÎNEMENT ===
 document.getElementById('modePlay').addEventListener('click',()=>setMode('play'));
 document.getElementById('modeTrain').addEventListener('click',()=>setMode('train'));
+document.getElementById('openingSearch').addEventListener('input',e=>{
+  const q=e.target.value.trim();
+  renderOpeningRows(q.length>=2?searchOpenings(q):featuredOpenings());
+});
 
 startWorker();
 startNewGame(false);

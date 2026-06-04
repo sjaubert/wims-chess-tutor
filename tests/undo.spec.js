@@ -53,3 +53,37 @@ test('Annuler est désactivé après la fin de partie (abandon)', async ({ page 
   await page.locator('#resign').click();                  // partie terminée
   await expect(page.locator('#undoMove')).toBeDisabled();
 });
+
+test('cliquer sur un coup de l\'historique ramène à cette position', async ({ page }) => {
+  await page.goto('/chess.html');
+  const start = await occupied(page);
+  await dragPiece(page, 52, 36); // e2 -> e4 ; le bot répond (coup 1)
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  const afterMove1 = await occupied(page);
+  await dragPiece(page, 51, 35); // d2 -> d4 ; le bot répond (coup 2)
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  
+  const moves = page.locator('.history-move');
+  await expect(moves.first()).toBeVisible();
+  await moves.first().click();
+  
+  // Revenir au premier coup blanc (index 0 de undoStack) ramène à la position de départ
+  expect(await occupied(page)).toEqual(start);
+});
+
+test('cliquer sur le deuxième coup blanc ramène à l\'état intermédiaire', async ({ page }) => {
+  await page.goto('/chess.html');
+  await dragPiece(page, 52, 36); // 1) e2 -> e4 ; le bot répond
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  const afterMove1 = await occupied(page);
+  
+  await dragPiece(page, 51, 35); // 2) d2 -> d4 ; le bot répond
+  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  
+  const moves = page.locator('.history-move');
+  await expect(moves.nth(2)).toBeVisible();
+  await moves.nth(2).click();
+  
+  // Revenir au deuxième coup blanc (index 2 de undoStack) ramène après le premier coup + réponse bot
+  expect(await occupied(page)).toEqual(afterMove1);
+});

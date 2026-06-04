@@ -245,6 +245,17 @@
         .move-entry:last-child { border-bottom: 0 }
         .move-main { white-space: nowrap }
         .move-sub { white-space: nowrap; color: var(--muted) }
+        .history-move {
+            display: inline-block !important;
+            cursor: pointer;
+            padding: 1px 4px;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .history-move:hover {
+            background: rgba(83, 107, 70, 0.15);
+            color: var(--accent);
+        }
         .score-head {
             display: flex;
             align-items: flex-start;
@@ -2404,9 +2415,16 @@ function updatePanel(){
     for(let i=0;i<history.length;i+=2){
       const wm=history[i],bm=history[i+1];
       const num=Math.floor(i/2)+1;
-      let line=`${num}. ${wm.notation}`;
-      if(bm)line+=` ${bm.notation}`;
-      html+=`<div class="move-entry"><span class="move-main">${line}</span></div>`;
+      if(mode==='play'){
+        html+=`<div class="move-entry"><span class="move-main">${num}. `+
+              `<span class="history-move" onclick="revertToMove(${i})">${wm.notation}</span>`+
+              (bm?` <span class="history-move" onclick="revertToMove(${i+1})">${bm.notation}</span>`:'')+
+              `</span></div>`;
+      } else {
+        let line=`${num}. ${wm.notation}`;
+        if(bm)line+=` ${bm.notation}`;
+        html+=`<div class="move-entry"><span class="move-main">${line}</span></div>`;
+      }
     }
     return html;
   })();
@@ -2518,6 +2536,21 @@ function undoMove(){
   render();
   if(tutorEnabled) requestAnalysis();
 }
+
+function revertToMove(idx){
+  if(mode!=='play' || botBusy) return;
+  if(idx<0 || idx>=undoStack.length) return;
+  const snap=undoStack[idx];
+  if(!snap) return;
+  restoreSnapshot(snap);
+  undoStack.length=idx;
+  document.getElementById('bilanOverlay').classList.add('hidden');
+  bilanPending=false; bilanShown=false;
+  render();
+  if(tutorEnabled) requestAnalysis();
+  if(!gameOver && state.turn===botColor) setTimeout(()=>triggerBot(),80);
+}
+window.revertToMove=revertToMove;
 
 // === MOVE EXECUTION ===
 function tryMove(from,to){

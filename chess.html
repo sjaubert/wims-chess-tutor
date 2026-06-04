@@ -1374,6 +1374,9 @@ const TUTOR_DEFAULT_MODEL='claude-haiku-4-5-20251001';
 // === ENTRAÎNEMENT OUVERTURES : état ===
 let mode='play';          // 'play' | 'train'
 let openingsData=null;    // cache du catalogue chargé
+let lessonsData=null;     // cache lessons.json (bibliothèque curée)
+let study=null;           // {lesson, ply} curseur de la phase Étude
+let phase='recall';       // 'study' | 'recall' (au sein du mode train)
 let drill=null;           // {opening, side, line:[uci], plyIndex, hintLevel}
 
 function uciOf(m){ return sqName(m.from)+sqName(m.to)+(m.promo?m.promo.toLowerCase():''); }
@@ -1514,6 +1517,26 @@ function searchOpenings(query, limit=60){
     if(o.name.toLowerCase().includes(q)){ out.push(o); if(out.length>=limit) break; }
   }
   return out;
+}
+async function loadLessons(){
+  if(lessonsData) return lessonsData;
+  const res=await fetch('lessons.json');
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  lessonsData=await res.json();
+  return lessonsData;
+}
+function featuredLessons(){
+  return lessonsData ? lessonsData.slice() : [];
+}
+function searchLessons(query){
+  if(!lessonsData||!query) return [];
+  const q=query.toLowerCase();
+  return lessonsData.filter(l=>l.name.toLowerCase().includes(q));
+}
+// Convertit une entrée du catalogue ECO en leçon (sans commentaires).
+function openingToLesson(o, side){
+  return { id:'cat:'+o.eco+':'+o.name, name:o.name, eco:o.eco||'', category:'mainline',
+           side, uci:o.uci.slice(), comments:o.uci.map(()=> ''), summary:'', trapPly:null };
 }
 
 function setMode(next){
@@ -1694,7 +1717,9 @@ function continueInFreePlay(){
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }
 
-window.__trainTest={ getMode:()=>mode, getDrill:()=>drill, loadOpenings, featuredOpenings, searchOpenings, startDrill, uciOf, buildOpeningPrompt };
+window.__trainTest={ getMode:()=>mode, getPhase:()=>phase, getDrill:()=>drill, getStudy:()=>study,
+  loadOpenings, featuredOpenings, searchOpenings, loadLessons, featuredLessons, searchLessons,
+  openingToLesson, startDrill, uciOf, buildOpeningPrompt };
 // Seam de test : jouer un coup pour le camp au trait, sans déclencher le bot.
 window.__gameTest={ playUci:(uci)=>{
   const m=legalMoves(state).find(x=>uciOf(x)===uci);

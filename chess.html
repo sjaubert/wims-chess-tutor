@@ -363,6 +363,18 @@
             display: grid;
             place-items: center;
         }
+        .bilan-dialog { min-width: 340px; max-width: 440px }
+        .bilan-body { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: left }
+        .bilan-col { background: white; border: 1px solid rgba(93,61,33,.14); border-radius: 16px; padding: 14px 16px }
+        .bilan-col-title { font-weight: 900; text-transform: uppercase; letter-spacing: .06em; font-size: 12px; color: var(--muted); margin-bottom: 8px }
+        .bilan-elo { font-size: 30px; font-weight: 950; letter-spacing: -.03em }
+        .bilan-elo-lbl { font-size: 12px; font-weight: 700; color: var(--muted) }
+        .bilan-acc { font-size: 14px; font-weight: 750; margin: 4px 0 8px }
+        .bilan-errs { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 1.6 }
+        .bilan-empty { color: var(--muted); font-size: 13px }
+        .bilan-progress { grid-column: 1/-1; text-align: center; font-weight: 700; padding: 24px 0 }
+        .bilan-note { font-size: 11px; color: var(--muted); margin: 16px 0 14px }
+        .bilan-close { padding: 8px 18px; border-radius: 10px; cursor: pointer }
         .promo-choices button:hover {
             border-color: var(--accent);
             background: #f0f7ec;
@@ -581,6 +593,15 @@
     <div class="promo-dialog">
         <div class="promo-title">Promotion — choose a piece</div>
         <div id="promoChoices" class="promo-choices"></div>
+    </div>
+</div>
+
+<div id="bilanOverlay" class="promo-overlay hidden">
+    <div class="promo-dialog bilan-dialog">
+        <div class="promo-title">Bilan de la partie</div>
+        <div id="bilanBody" class="bilan-body"></div>
+        <div class="bilan-note">Estimation indicative, calculée sur une seule partie.</div>
+        <button id="bilanClose" class="bilan-close">Fermer</button>
     </div>
 </div>
 
@@ -1311,6 +1332,7 @@ const VAL={P:100,N:320,B:335,R:500,Q:930,K:0};
 let userColor=WHITE, botColor=BLACK;
 let state, flipped, selected, legalCache, lastMove, history, dragging, botBusy, gameOver, resigned;
 let undoStack=[]; // pile de photos de position pour l'annulation (mode partie libre)
+let bilanPending=false, bilanShown=false; // bilan de fin de partie (une fois par partie)
 let scores=loadScores(), scoredThisGame=false;
 let pendingPromo=null;
 let positionCounts=new Map(); // threefold repetition tracking
@@ -1385,6 +1407,52 @@ function computeBilan(history, records, opts={}){
     else if(c === 'inaccuracy') A.inaccuracies++;
   }
   return { white: summarizeBilan(acc.w), black: summarizeBilan(acc.b) };
+}
+function buildBilanPositions(){
+  const states=[]; const moves=[];
+  let s=fromFEN(START);
+  states.push(clone(s));
+  for(const h of history){
+    const mv=legalMoves(s).find(m=>uciOf(m)===h.uci);
+    if(!mv) break;
+    s=applyMove(s,mv,false);
+    states.push(clone(s));
+    moves.push(h.uci);
+  }
+  return {states,moves};
+}
+function showBilanProgress(done,total){
+  document.getElementById('bilanBody').innerHTML=`<div class="bilan-progress">Analyse de la partie… ${done}/${total}</div>`;
+  document.getElementById('bilanOverlay').classList.remove('hidden');
+}
+function bilanColHtml(title,c){
+  if(!c||!c.counted)
+    return `<div class="bilan-col"><div class="bilan-col-title">${title}</div><div class="bilan-empty">Estimation indisponible (partie trop courte ou théorique).</div></div>`;
+  return `<div class="bilan-col">
+    <div class="bilan-col-title">${title}</div>
+    <div class="bilan-elo">${c.elo}<span class="bilan-elo-lbl"> Elo est.</span></div>
+    <div class="bilan-acc">Précision ${Math.round(c.accuracy)}%</div>
+    <ul class="bilan-errs">
+      <li>Bourdes : ${c.blunders}</li>
+      <li>Erreurs : ${c.mistakes}</li>
+      <li>Imprécisions : ${c.inaccuracies}</li>
+    </ul></div>`;
+}
+function renderBilan(result){
+  const mine = userColor===WHITE ? result.white : result.black;
+  const theirs = userColor===WHITE ? result.black : result.white;
+  document.getElementById('bilanBody').innerHTML = bilanColHtml('Vous',mine) + bilanColHtml('Ordinateur',theirs);
+  document.getElementById('bilanOverlay').classList.remove('hidden');
+}
+function requestBilan(){
+  if(bilanPending||bilanShown||!worker||history.length<1) return;
+  bilanPending=true;
+  const {states,moves}=buildBilanPositions();
+  showBilanProgress(0,states.length);
+  worker.postMessage({type:'bilan',states,moves});
+}
+function maybeRequestBilan(){
+  if(mode==='play' && gameOver && !bilanShown && !bilanPending) requestBilan();
 }
 
 const FEATURED_OPENINGS=['Ruy Lopez','Italian Game','Sicilian Defense','French Defense',
@@ -1773,6 +1841,14 @@ function startWorker(){
       renderTutorPanel();
       return;
     }
+    if(e.data&&e.data.type==='bilanProgress'){ showBilanProgress(e.data.done,e.data.total); return; }
+    if(e.data&&e.data.type==='bilanResult'){
+      bilanPending=false; bilanShown=true;
+      const result=computeBilan(history,e.data.records);
+      if(window.__bilanTest) window.__bilanTest.lastResult=result;
+      renderBilan(result);
+      return;
+    }
     const m=e.data;
     if(m){ pushUndoSnapshot(); state=applyMove(state,m,true); }
     botBusy=false;
@@ -2106,6 +2182,7 @@ function updatePanel(){
     return html;
   })();
   movesEl.scrollTop=movesEl.scrollHeight;
+  maybeRequestBilan();
 }
 
 function markSelection(){
@@ -2287,6 +2364,8 @@ function startNewGame(flipColors=true){
   positionCounts=new Map();
   positionCounts.set(posKey(state),1); // la position de départ compte comme 1re occurrence
   promoOverlay.classList.add('hidden');
+  document.getElementById('bilanOverlay').classList.add('hidden');
+  bilanPending=false; bilanShown=false;
   legalCache=[];
   render();
   requestAnalysis();
@@ -2417,6 +2496,9 @@ document.addEventListener('keydown',e=>{
     tutorEnabled=toggle.checked;
     renderTutorPanel();
     if(tutorEnabled)requestAnalysis();
+  });
+  document.getElementById('bilanClose').addEventListener('click',()=>{
+    document.getElementById('bilanOverlay').classList.add('hidden');
   });
   settingsBtn.addEventListener('click',()=>settings.classList.toggle('hidden'));
   saveBtn.addEventListener('click',()=>{

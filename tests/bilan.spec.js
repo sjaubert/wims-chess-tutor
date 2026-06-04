@@ -98,3 +98,23 @@ test('computeBilan : exclut coups du livre et coups forcés', async ({ page }) =
   expect(r.black.counted).toBe(0);
   expect(r.black.accuracy).toBeNull();
 });
+
+test('le bilan s’affiche en fin de partie (mat) pour les deux camps', async ({ page }) => {
+  await page.goto(url);
+  await page.waitForSelector('.square .piece');
+  await page.waitForFunction(() => !!window.__bilanTest);
+  // Mat du berger inversé (Fool's mate) : 1.f3 e5 2.g4 Qh4#
+  await page.evaluate(() => ['f2f3', 'e7e5', 'g2g4', 'd8h4'].forEach(u => window.__gameTest.playUci(u)));
+  // L'overlay affiche d'abord la progression puis le résultat final : on attend le contenu final.
+  await page.waitForFunction(
+    () => document.getElementById('bilanBody').textContent.includes('Vous'),
+    { timeout: 30000 }
+  );
+  await expect(page.locator('#bilanOverlay')).not.toHaveClass(/hidden/);
+  const txt = await page.$eval('#bilanBody', el => el.textContent);
+  expect(txt).toMatch(/Vous/);
+  expect(txt).toMatch(/Ordinateur/);
+  // Fermeture
+  await page.click('#bilanClose');
+  await expect(page.locator('#bilanOverlay')).toHaveClass(/hidden/);
+});

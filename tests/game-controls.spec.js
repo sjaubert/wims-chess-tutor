@@ -9,8 +9,10 @@ test('Abandonner termine la partie et l\'affiche durablement', async ({ page }) 
   await expect(page.locator('#status')).toContainText('abandonn', { timeout: 4000 });
   await page.waitForTimeout(400);
   await expect(page.locator('#status')).toContainText('abandonn');
-  // Le bot a marqué un point
-  await expect(page.locator('#scoreboard')).toHaveText('0 - 1 - 0');
+  // Le bot a marqué un point (Vous - Bot - Nulles)
+  await expect(page.locator('#scoreYou')).toHaveText('0');
+  await expect(page.locator('#scoreBot')).toHaveText('1');
+  await expect(page.locator('#scoreDraw')).toHaveText('0');
 });
 
 test('reset des scores remet le tableau à zéro', async ({ page }) => {
@@ -18,9 +20,11 @@ test('reset des scores remet le tableau à zéro', async ({ page }) => {
   await page.goto('/chess.html');
   // Provoque un score via un abandon, puis reset
   await page.locator('#resign').click();
-  await expect(page.locator('#scoreboard')).toHaveText('0 - 1 - 0');
+  await expect(page.locator('#scoreBot')).toHaveText('1');
   await page.locator('#resetScores').click();
-  await expect(page.locator('#scoreboard')).toHaveText('0 - 0 - 0');
+  await expect(page.locator('#scoreYou')).toHaveText('0');
+  await expect(page.locator('#scoreBot')).toHaveText('0');
+  await expect(page.locator('#scoreDraw')).toHaveText('0');
 });
 
 test('Nouvelle partie après un abandon réautorise le jeu', async ({ page }) => {

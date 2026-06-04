@@ -258,11 +258,32 @@
             letter-spacing: .08em;
             color: var(--muted);
         }
-        .scoreline {
+        .scoreboard {
+            display: flex;
+            gap: 20px;
+            margin-top: 6px;
+        }
+        .score-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .score-num {
             font-size: 28px;
             font-weight: 950;
             letter-spacing: -.04em;
-            margin-top: 3px;
+            line-height: 1;
+        }
+        .score-num.you { color: var(--accent) }
+        .score-num.bot { color: #b0432e }
+        .score-num.draw { color: var(--muted) }
+        .score-lbl {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: .06em;
+            color: var(--muted);
+            margin-top: 4px;
         }
         .reset-link {
             border: 0;
@@ -507,7 +528,11 @@
                 <div>
                     <a id="wimsHome" class="wims-home" href="/wims/wims.cgi">← Retour à WIMS</a>
                     <div class="score-title">Scoreboard</div>
-                    <div id="scoreboard" class="scoreline">0 - 0 - 0</div>
+                    <div id="scoreboard" class="scoreboard">
+                        <div class="score-cell"><span id="scoreYou" class="score-num you">0</span><span class="score-lbl">Vous</span></div>
+                        <div class="score-cell"><span id="scoreBot" class="score-num bot">0</span><span class="score-lbl">Bot</span></div>
+                        <div class="score-cell"><span id="scoreDraw" class="score-num draw">0</span><span class="score-lbl">Nulles</span></div>
+                    </div>
                 </div>
                 <button id="resetScores" class="reset-link">reset</button>
             </div>
@@ -1321,7 +1346,9 @@ const START='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const boardEl=document.getElementById('board'),
       statusEl=document.getElementById('status'),
       movesEl=document.getElementById('moves'),
-      scoreboardEl=document.getElementById('scoreboard'),
+      scoreYouEl=document.getElementById('scoreYou'),
+      scoreBotEl=document.getElementById('scoreBot'),
+      scoreDrawEl=document.getElementById('scoreDraw'),
       userCapsEl=document.getElementById('userCaps'),
       botCapsEl=document.getElementById('botCaps'),
       resetScoresEl=document.getElementById('resetScores'),
@@ -2199,7 +2226,7 @@ function markSelection(){
 // === SCORE & CAPTURES ===
 function loadScores(){try{const s=JSON.parse(localStorage.getItem('chessBotScoresV1'))||{};return{you:+s.you||0,bot:+s.bot||0,draw:+s.draw||0};}catch(e){return{you:0,bot:0,draw:0};}}
 function saveScores(){localStorage.setItem('chessBotScoresV1',JSON.stringify(scores));}
-function updateScoreboard(){scoreboardEl.textContent=`${scores.you} - ${scores.bot} - ${scores.draw}`;}
+function updateScoreboard(){scoreYouEl.textContent=scores.you;scoreBotEl.textContent=scores.bot;scoreDrawEl.textContent=scores.draw;}
 function updateCaptures(){
   const takenByUser={},takenByBot={};
   for(const h of history){

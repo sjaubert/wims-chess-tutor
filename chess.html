@@ -1809,10 +1809,16 @@ function playFromHere(){
   document.getElementById('modeTrain').classList.remove('active');
   document.getElementById('studyPanel').classList.add('hidden');
   // La position courante (state) devient le point de départ d'une partie libre.
-  gameOver=false; resigned=false; botBusy=false; selected=null;
-  history=[]; undoStack=[]; bilanShown=false; bilanPending=false;
+  selected=null; lastMove=null; history=[];
+  botBusy=false; gameOver=false; scoredThisGame=false; resigned=false; undoStack=[];
+  pendingPromo=null;
   positionCounts=new Map(); positionCounts.set(posKey(state),1);
+  promoOverlay.classList.add('hidden');
+  document.getElementById('bilanOverlay').classList.add('hidden');
+  bilanPending=false; bilanShown=false;
+  legalCache=[];
   render();
+  requestAnalysis();
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }
 // Conservé pour compat : le bouton de fin de drill réutilise la bascule.

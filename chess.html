@@ -1314,6 +1314,30 @@ let drill=null;           // {opening, side, line:[uci], plyIndex, hintLevel}
 
 function uciOf(m){ return sqName(m.from)+sqName(m.to)+(m.promo?m.promo.toLowerCase():''); }
 
+// === BILAN DE NIVEAU (fonctions pures, testables) ===========================
+// Toutes les évaluations sont en centipions, du point de vue du camp concerné.
+const BILAN_CP_CAP = 1000; // plafonne les pertes (neutralise les scores de mat)
+
+function winPercent(cp){ // cp du point de vue du camp -> % de victoire (0..100)
+  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+}
+function cpLoss(evalBeforeCamp, evalAfterCamp, cap=BILAN_CP_CAP){
+  return Math.max(0, Math.min(evalBeforeCamp - evalAfterCamp, cap));
+}
+function moveAccuracy(deltaWinPct){ // précision d'un coup (formule type lichess)
+  const d = Math.max(0, deltaWinPct);
+  return Math.max(0, Math.min(103.1668 * Math.exp(-0.04354 * d) - 3.1669, 100));
+}
+function classifyLoss(loss){
+  if(loss >= 200) return 'blunder';
+  if(loss >= 100) return 'mistake';
+  if(loss >= 50)  return 'inaccuracy';
+  return 'ok';
+}
+function acplToElo(acpl){
+  return Math.max(400, Math.min(Math.round(3000 * Math.exp(-acpl / 120)), 2800));
+}
+
 const FEATURED_OPENINGS=['Ruy Lopez','Italian Game','Sicilian Defense','French Defense',
   'Caro-Kann Defense','Scandinavian Defense',"Queen's Gambit Declined","King's Indian Defense",
   'English Opening','Réti Opening','Slav Defense','Nimzo-Indian Defense'];
@@ -1535,6 +1559,7 @@ window.__gameTest={ playUci:(uci)=>{
   selected=null; render();
   return true;
 } };
+window.__bilanTest = { winPercent, cpLoss, moveAccuracy, classifyLoss, acplToElo, lastResult: null };
 
 function getTutorSettings(){
   return {

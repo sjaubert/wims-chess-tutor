@@ -1,0 +1,49 @@
+[
+  {
+    "id": "italian-giuoco-piano",
+    "name": "Partie italienne (Giuoco Piano)",
+    "category": "mainline",
+    "eco": "C50",
+    "side": "w",
+    "uci": ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "f8c5", "c2c3", "g8f6", "d2d3", "d7d6"],
+    "comments": [
+      "Occupe le centre et libère le fou f1 et la dame.",
+      "Réponse symétrique classique.",
+      "Développe le cavalier et attaque e5.",
+      "Défend e5 et développe une pièce.",
+      "Le fou vise la case sensible f7.",
+      "Le fou noir vise f2, miroir du plan blanc.",
+      "Prépare d4 en soutenant le centre.",
+      "Développe et contre-attaque e4.",
+      "Soutient e4 et ouvre le fou c1 ; jeu posé.",
+      "Position solide : les deux camps ont fini le petit centre."
+    ],
+    "summary": "L'une des plus vieilles ouvertures : développement rapide, pression sur f7, plan de poussée d4."
+  },
+  {
+    "id": "legal-mate",
+    "name": "Mat de Légal",
+    "category": "trap",
+    "eco": "C41",
+    "side": "w",
+    "trapPly": 8,
+    "uci": ["e2e4", "e7e5", "g1f3", "d7d6", "f1c4", "c8g4", "b1c3", "g7g6", "f3e5", "g4d1", "c4f7", "e8e7", "c3d5"],
+    "comments": [
+      "Ouvre le centre.",
+      "Défense Philidor.",
+      "Attaque e5.",
+      "Défend e5 mais enferme le fou f8.",
+      "Le fou sort et vise f7.",
+      "Clouage apparent du cavalier f3 sur la dame.",
+      "Développe ; le piège se met en place.",
+      "Noir affaiblit son roque.",
+      "⚠ Le piège : le cavalier prend en e5 et « abandonne » la dame !",
+      "Noir prend la dame… erreur fatale.",
+      "Échec : le fou prend f7.",
+      "Le roi est forcé de sortir.",
+      "Et le cavalier en d5 délivre le mat : sacrifice de dame réussi."
+    ],
+    "summary": "Sacrifice de dame célèbre : si Noir prend en d1 après Cxe5, Blanc mate par Fxf7+ et Cd5#.",
+    "refutation": "Si Noir ne prend pas la dame (…dxe5 au lieu de …Fxd1), Blanc a juste sacrifié sa dame : il faut donc que l'adversaire « morde » au piège."
+  }
+]

@@ -1571,7 +1571,7 @@ function openingToLesson(o, side){
 
 function setMode(next){
   mode=next;
-  studyAutoStop();
+  study=null; studyAutoStop();
   document.querySelector('.right-stack').classList.remove('study');
   document.getElementById('studyPanel').classList.add('hidden');
   const rs=document.querySelector('.right-stack');
@@ -1635,7 +1635,7 @@ function drillFeedback(msg, kind){
 
 function startDrill(opening, side){
   mode='train';
-  phase='recall'; studyAutoStop();
+  phase='recall'; study=null; studyAutoStop();
   document.querySelector('.right-stack').classList.remove('study');
   document.getElementById('studyPanel').classList.add('hidden');
   document.querySelector('.right-stack').classList.add('train');
@@ -2504,6 +2504,7 @@ function squareFromPoint(x,y){
 
 // === INTERACTION ===
 boardEl.addEventListener('pointerdown',e=>{
+  if(mode==='train'&&phase==='study')return; // plateau en lecture seule pendant l'Étude
   if(state.turn!==userColor||botBusy||gameOver)return;
   const piece=e.target.closest('.piece');if(!piece)return;
   const i=Number(piece.dataset.i),p=state.b[i];
@@ -2531,6 +2532,7 @@ boardEl.addEventListener('pointerup',e=>{
   if(to==null||!tryMove(from,to)){selected=null;render();}
 });
 boardEl.addEventListener('click',e=>{
+  if(mode==='train'&&phase==='study')return; // plateau en lecture seule pendant l'Étude
   if(dragging||state.turn!==userColor||botBusy||gameOver)return;
   const sq=e.target.closest('.square');if(!sq)return;
   const i=Number(sq.dataset.i),p=state.b[i];

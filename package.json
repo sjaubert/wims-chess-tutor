@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "http-server -p 8080 .",
     "test": "playwright test"
   },
   "devDependencies": {

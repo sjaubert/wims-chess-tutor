@@ -40,3 +40,18 @@ test('reculer revient en arrière', async ({ page }) => {
   await page.locator('#studyPrev').click();
   expect(await page.evaluate(()=>window.__trainTest.getStudy().ply)).toBe(1);
 });
+
+test('le picker liste les leçons curées (ouvertures + pièges)', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.locator('#modeTrain').click();
+  await expect(page.locator('#lessonMainlines .opening-row').first()).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#lessonTraps')).toContainText('Légal', { timeout: 5000 });
+});
+
+test('cliquer une leçon curée ouvre directement l\'Étude', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.locator('#modeTrain').click();
+  await page.locator('#lessonTraps .opening-row', { hasText: 'Légal' }).first().click();
+  await expect(page.locator('#studyPanel')).toBeVisible();
+  await expect(page.locator('#studyName')).toContainText('Légal');
+});

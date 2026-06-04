@@ -602,7 +602,11 @@
         </section>
         <section id="trainPane" class="train-pane">
             <div id="openingPicker" class="opening-picker">
-                <div class="train-title">Choisir une ouverture</div>
+                <div class="train-title">Leçons — ouvertures essentielles</div>
+                <div id="lessonMainlines" class="opening-results"></div>
+                <div class="train-title">Leçons — pièges classiques</div>
+                <div id="lessonTraps" class="opening-results"></div>
+                <div class="train-title">Catalogue complet</div>
                 <input id="openingSearch" type="search" placeholder="Rechercher une ouverture…">
                 <div id="openingResults" class="opening-results"></div>
             </div>
@@ -1602,6 +1606,23 @@ function renderOpeningRows(list){
     box.appendChild(row);
   }
 }
+function renderLessonRows(list, boxId){
+  const box=document.getElementById(boxId);
+  box.innerHTML='';
+  for(const l of list){
+    const row=document.createElement('div');
+    row.className='opening-row';
+    const side=l.side===WHITE?'Blancs':'Noirs';
+    row.innerHTML=`<span class="eco">${l.eco||''}</span>${l.name}<div class="moves">${side} — ${l.uci.length} demi-coups</div>`;
+    row.addEventListener('click',()=>startStudy(l));
+    box.appendChild(row);
+  }
+}
+function renderLessonGroups(){
+  const all=featuredLessons();
+  renderLessonRows(all.filter(l=>l.category==='mainline'),'lessonMainlines');
+  renderLessonRows(all.filter(l=>l.category==='trap'),'lessonTraps');
+}
 
 function askSideThenStart(o,row){
   document.querySelectorAll('.opening-sidechoice').forEach(e=>e.remove());
@@ -1609,22 +1630,30 @@ function askSideThenStart(o,row){
   choice.className='opening-sidechoice';
   const wb=document.createElement('button'); wb.className='drill-btn'; wb.textContent='Jouer les Blancs';
   const bb=document.createElement('button'); bb.className='drill-btn'; bb.textContent='Jouer les Noirs';
-  wb.addEventListener('click',e=>{e.stopPropagation();startDrill(o,WHITE);});
-  bb.addEventListener('click',e=>{e.stopPropagation();startDrill(o,BLACK);});
+  wb.addEventListener('click',e=>{e.stopPropagation();startStudy(openingToLesson(o,WHITE));});
+  bb.addEventListener('click',e=>{e.stopPropagation();startStudy(openingToLesson(o,BLACK));});
   choice.append(wb,bb);
   row.after(choice);
 }
 
 async function showOpeningPicker(){
+  studyAutoStop();
+  const rs=document.querySelector('.right-stack');
+  rs.classList.add('train'); rs.classList.remove('study');
+  mode='train';
+  document.getElementById('modePlay').classList.remove('active');
+  document.getElementById('modeTrain').classList.add('active');
   document.getElementById('openingPicker').classList.remove('hidden');
   document.getElementById('drillPanel').classList.add('hidden');
+  document.getElementById('studyPanel').classList.add('hidden');
   const box=document.getElementById('openingResults');
   try{
-    await loadOpenings();
+    await Promise.all([loadOpenings(), loadLessons()]);
   }catch(e){
-    box.innerHTML='<div class="drill-feedback bad">Catalogue indisponible ('+e.message+').</div>';
+    box.innerHTML='<div class="drill-feedback bad">Données indisponibles ('+e.message+').</div>';
     return;
   }
+  renderLessonGroups();
   renderOpeningRows(featuredOpenings());
 }
 function drillFeedback(msg, kind){

@@ -114,6 +114,10 @@ ouverte en Étude.
 - Comparaison **par coup exact** en restitution (pas de transpositions — choix assumé).
 - `studyApplyTo` rejoue avec `applyMove(...,false)` (pas d'effet de bord) et pose `lastMove`
   manuellement pour la surbrillance.
+- **Piège CSS (corrigé le 04 juin 2026) :** la règle globale `button{color:white}` s'applique à
+  tout `<button>`. Tout bouton à fond clair doit **redéfinir `color`** sinon le texte est blanc
+  sur blanc (cas vécu : les coups `.study-move` étaient invisibles). Test garde-fou dans
+  `tests/study.spec.js` (« texte lisible ») et `tests/openings.spec.js`.
 
 ## Améliorations possibles (backlog)
 

@@ -16,3 +16,26 @@ test('searchLessons filtre par nom', async ({ page }) => {
   const hit = await page.evaluate(() => window.__trainTest.searchLessons('légal').length);
   expect(hit).toBeGreaterThan(0);
 });
+
+const LESSON = { id:'t-leg', name:'Test Légal', category:'trap', eco:'C41', side:'w', trapPly:2,
+  uci:['e2e4','e7e5','g1f3'], comments:['idée 1','idée 2','idée 3'], summary:'s' };
+
+async function dragPiece(page, fromIndex, toIndex){
+  const f=await page.locator(`.square[data-i="${fromIndex}"]`).boundingBox();
+  const t=await page.locator(`.square[data-i="${toIndex}"]`).boundingBox();
+  await page.mouse.move(f.x+f.width/2,f.y+f.height/2);
+  await page.mouse.down();
+  await page.mouse.move(t.x+t.width/2,t.y+t.height/2,{steps:6});
+  await page.mouse.up();
+}
+
+test('un coup faux incrémente le compteur d\'essais', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate((l)=>window.__trainTest.startDrill(l,'w'), LESSON);
+  await dragPiece(page, 48, 40); // a2-a3 (FAUX)
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().wrongTries)).toBe(1);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBe(0);
+});
+
+module.exports = { LESSON, dragPiece };

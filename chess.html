@@ -1605,7 +1605,7 @@ function startDrill(opening, side){
   document.querySelector('.right-stack').classList.add('train');
   document.getElementById('modePlay').classList.remove('active');
   document.getElementById('modeTrain').classList.add('active');
-  drill={opening, side, line:opening.uci.slice(), plyIndex:0, hintLevel:0};
+  drill={opening, side, line:opening.uci.slice(), plyIndex:0, hintLevel:0, wrongTries:0};
   userColor=side; botColor=opp(side);
   flipped=(userColor===BLACK);
   state=fromFEN(START);
@@ -1641,13 +1641,18 @@ function drillTryMove(from,to){
   const expected=drill.line[drill.plyIndex];
   const m=choices.find(x=>uciOf(x)===expected)||choices[0];
   if(uciOf(m)!==expected){
-    drill.hintLevel=0;
+    drill.wrongTries=(drill.wrongTries||0)+1;
     selected=null; render();
-    drillFeedback('✗ Ce n\'est pas le coup de la ligne. Réessayez.','bad');
+    if(drill.wrongTries>=3){
+      drillFeedback('✗ Toujours pas — voici un indice.','bad');
+      drillHint();
+    } else {
+      drillFeedback('✗ Ce n\'est pas le coup de la ligne. Réessayez.','bad');
+    }
     return true; // consommé : on ne laisse pas le handler re-render
   }
   state=applyMove(state,m,true);
-  drill.plyIndex++; drill.hintLevel=0;
+  drill.plyIndex++; drill.hintLevel=0; drill.wrongTries=0;
   selected=null; render(); renderDrillPanel();
   if(drill.plyIndex>=drill.line.length){ drillComplete(); return true; }
   drillFeedback('✓ Bien joué.','good');

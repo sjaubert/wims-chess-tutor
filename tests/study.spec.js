@@ -11,6 +11,15 @@ test('startStudy ouvre le panneau d\'étude au coup 0', async ({ page }) => {
   expect(await page.evaluate(()=>window.__trainTest.getStudy().ply)).toBe(0);
 });
 
+test('les coups de la liste ont un texte lisible (pas blanc sur blanc)', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate((l)=>window.__trainTest.startStudy(l), LESSON);
+  const first = page.locator('#studyMoves .study-move').first();
+  await expect(first).toHaveText('1.e4');
+  const color = await first.evaluate(el => getComputedStyle(el).color);
+  expect(color).not.toBe('rgb(255, 255, 255)');
+});
+
 test('avancer déplace les pièces et affiche le commentaire', async ({ page }) => {
   await page.goto('/chess.html');
   await page.evaluate((l)=>window.__trainTest.startStudy(l), LESSON);

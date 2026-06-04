@@ -500,6 +500,15 @@
 .drill-feedback.good{color:var(--accent)}
 .drill-feedback.bad{color:#b3402e}
 .drill-hinttext{font-size:13px;color:var(--accent);min-height:1.2em;font-style:italic}
+.study-comment{font-size:14px;line-height:1.5;min-height:2.6em}
+.study-trap{font-size:13px;line-height:1.5;background:rgba(179,64,46,.1);border:1px solid rgba(179,64,46,.5);color:#8a2f20;border-radius:10px;padding:8px 10px}
+.study-controls{display:flex;gap:6px}
+.study-controls .drill-btn{flex:1;padding:6px 4px;font-size:15px}
+.study-moves{display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow:auto}
+.study-move{font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid rgba(120,107,96,.25);background:#fff;cursor:pointer}
+.study-move.current{background:var(--accent);color:#fff;border-color:var(--accent)}
+.right-stack.train.study #drillPanel,.right-stack.train.study #openingPicker{display:none}
+.study-panel.hidden,.study-trap.hidden{display:none}
 .drill-btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(120,107,96,.4);background:rgba(255,250,242,.8);color:var(--ink);cursor:pointer;font-size:13px}
 .drill-btn:disabled{opacity:.45;cursor:not-allowed}
 .drill-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -609,6 +618,25 @@
                     <button id="drillRestart" class="drill-btn">Recommencer</button>
                     <button id="drillChange" class="drill-btn">Changer d'ouverture</button>
                     <button id="drillToFree" class="drill-btn hidden">Continuer en partie libre</button>
+                </div>
+            </div>
+            <div id="studyPanel" class="study-panel hidden">
+                <div class="train-title"><span id="studyName"></span> <span id="studyEco" class="drill-eco"></span></div>
+                <div id="studyProgress" class="drill-progress"></div>
+                <div id="studyComment" class="study-comment"></div>
+                <div id="studyTrap" class="study-trap hidden"></div>
+                <div class="study-controls">
+                    <button id="studyFirst" class="drill-btn" title="Début">⏮</button>
+                    <button id="studyPrev" class="drill-btn" title="Précédent">◀</button>
+                    <button id="studyAutoplay" class="drill-btn" title="Lecture auto">▶</button>
+                    <button id="studyNext" class="drill-btn" title="Suivant">▶▌</button>
+                    <button id="studyLast" class="drill-btn" title="Fin">⏭</button>
+                </div>
+                <div id="studyMoves" class="study-moves"></div>
+                <div class="drill-actions">
+                    <button id="studyToRecall" class="drill-btn">🎯 M'exercer</button>
+                    <button id="studyToPlay" class="drill-btn">♟ Jouer à partir d'ici</button>
+                    <button id="studyChange" class="drill-btn">Changer de leçon</button>
                 </div>
             </div>
         </section>
@@ -1543,6 +1571,9 @@ function openingToLesson(o, side){
 
 function setMode(next){
   mode=next;
+  studyAutoStop();
+  document.querySelector('.right-stack').classList.remove('study');
+  document.getElementById('studyPanel').classList.add('hidden');
   const rs=document.querySelector('.right-stack');
   rs.classList.toggle('train', next==='train');
   document.getElementById('modePlay').classList.toggle('active', next==='play');
@@ -1604,6 +1635,9 @@ function drillFeedback(msg, kind){
 
 function startDrill(opening, side){
   mode='train';
+  phase='recall'; studyAutoStop();
+  document.querySelector('.right-stack').classList.remove('study');
+  document.getElementById('studyPanel').classList.add('hidden');
   document.querySelector('.right-stack').classList.add('train');
   document.getElementById('modePlay').classList.remove('active');
   document.getElementById('modeTrain').classList.add('active');
@@ -1747,9 +1781,79 @@ function continueInFreePlay(){
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }
 
+// === PHASE ÉTUDE =============================================================
+function studyApplyTo(ply){
+  state=fromFEN(START);
+  for(let i=0;i<ply;i++){
+    const m=legalMoves(state).find(x=>uciOf(x)===study.lesson.uci[i]);
+    if(!m) break;
+    state=applyMove(state,m,false);
+  }
+  if(ply>0){ const u=study.lesson.uci[ply-1]; lastMove={from:sqIndex(u.slice(0,2)),to:sqIndex(u.slice(2,4))}; }
+  else lastMove=null;
+  selected=null; legalCache=[];
+}
+function startStudy(lesson){
+  studyAutoStop();
+  mode='train'; phase='study'; study={lesson, ply:0}; drill=null;
+  userColor=lesson.side; botColor=opp(lesson.side); flipped=(userColor===BLACK);
+  const rs=document.querySelector('.right-stack');
+  rs.classList.add('train','study');
+  document.getElementById('modePlay').classList.remove('active');
+  document.getElementById('modeTrain').classList.add('active');
+  document.getElementById('openingPicker').classList.add('hidden');
+  document.getElementById('drillPanel').classList.add('hidden');
+  document.getElementById('studyPanel').classList.remove('hidden');
+  history=[]; gameOver=false; resigned=false; positionCounts=new Map(); undoStack=[];
+  studyApplyTo(0); render(); renderStudyPanel();
+}
+function studyStep(d){
+  if(!study) return;
+  const total=study.lesson.uci.length;
+  study.ply=Math.max(0,Math.min(total,study.ply+d));
+  studyApplyTo(study.ply); render(); renderStudyPanel();
+}
+function studyJumpTo(ply){
+  if(!study) return;
+  study.ply=Math.max(0,Math.min(study.lesson.uci.length,ply));
+  studyApplyTo(study.ply); render(); renderStudyPanel();
+}
+let studyTimer=null;
+function studyAutoStop(){ if(studyTimer){ clearInterval(studyTimer); studyTimer=null; const b=document.getElementById('studyAutoplay'); if(b)b.textContent='▶'; } }
+function studyAutoplay(){
+  if(studyTimer){ studyAutoStop(); return; }
+  const b=document.getElementById('studyAutoplay'); if(b)b.textContent='⏸';
+  studyTimer=setInterval(()=>{
+    if(!study||study.ply>=study.lesson.uci.length){ studyAutoStop(); return; }
+    studyStep(1);
+  },1100);
+}
+function renderStudyPanel(){
+  if(!study) return;
+  const L=study.lesson, total=L.uci.length, ply=study.ply;
+  document.getElementById('studyName').textContent=L.name;
+  document.getElementById('studyEco').textContent=L.eco||'';
+  document.getElementById('studyProgress').textContent=`Coup ${ply} / ${total}`;
+  const comment = ply>0 ? (L.comments[ply-1]||'') : (L.summary||'Cliquez sur ▶▌ pour dérouler la leçon.');
+  document.getElementById('studyComment').textContent=comment;
+  const trapEl=document.getElementById('studyTrap');
+  if(L.category==='trap' && ply>0 && (ply-1)===L.trapPly){
+    trapEl.textContent='⚠ Piège : '+(L.refutation||L.summary||'');
+    trapEl.classList.remove('hidden');
+  } else { trapEl.classList.add('hidden'); }
+  const san=pvToSan(L.uci, fromFEN(START));
+  const box=document.getElementById('studyMoves'); box.innerHTML='';
+  san.forEach((mv,i)=>{
+    const b=document.createElement('button');
+    b.className='study-move'+((i+1)===ply?' current':'');
+    b.textContent=(i%2===0?(Math.floor(i/2)+1)+'.':'')+mv;
+    b.addEventListener('click',()=>studyJumpTo(i+1));
+    box.appendChild(b);
+  });
+}
 window.__trainTest={ getMode:()=>mode, getPhase:()=>phase, getDrill:()=>drill, getStudy:()=>study,
   loadOpenings, featuredOpenings, searchOpenings, loadLessons, featuredLessons, searchLessons,
-  openingToLesson, startDrill, uciOf, buildOpeningPrompt };
+  openingToLesson, startDrill, startStudy, studyStep, studyJumpTo, uciOf, buildOpeningPrompt };
 // Seam de test : jouer un coup pour le camp au trait, sans déclencher le bot.
 window.__gameTest={ playUci:(uci)=>{
   const m=legalMoves(state).find(x=>uciOf(x)===uci);
@@ -2621,6 +2725,14 @@ document.getElementById('drillRestart').addEventListener('click',()=>{ if(drill)
 document.getElementById('drillChange').addEventListener('click',()=>showOpeningPicker());
 document.getElementById('drillToFree').addEventListener('click',continueInFreePlay);
 document.getElementById('drillExplainBtn').addEventListener('click',explainOpening);
+document.getElementById('studyFirst').addEventListener('click',()=>studyJumpTo(0));
+document.getElementById('studyPrev').addEventListener('click',()=>studyStep(-1));
+document.getElementById('studyNext').addEventListener('click',()=>studyStep(1));
+document.getElementById('studyLast').addEventListener('click',()=>{ if(study) studyJumpTo(study.lesson.uci.length); });
+document.getElementById('studyAutoplay').addEventListener('click',studyAutoplay);
+document.getElementById('studyChange').addEventListener('click',()=>{ studyAutoStop(); showOpeningPicker(); });
+document.getElementById('studyToRecall').addEventListener('click',()=>{ if(study){ studyAutoStop(); startDrill(study.lesson, study.lesson.side); } });
+document.getElementById('studyToPlay').addEventListener('click',()=>{ studyAutoStop(); playFromHere(); });
 
 startWorker();
 startNewGame(false);

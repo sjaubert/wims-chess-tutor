@@ -622,6 +622,7 @@
                     <button id="drillRestart" class="drill-btn">Recommencer</button>
                     <button id="drillChange" class="drill-btn">Changer d'ouverture</button>
                     <button id="drillToFree" class="drill-btn hidden">Continuer en partie libre</button>
+                    <button id="drillToPlay" class="drill-btn">♟ Jouer à partir d'ici</button>
                 </div>
             </div>
             <div id="studyPanel" class="study-panel hidden">
@@ -1798,17 +1799,24 @@ function drillComplete(){
   document.getElementById('drillToFree').classList.remove('hidden');
 }
 
-function continueInFreePlay(){
-  mode='play';
-  drill=null;
-  document.querySelector('.right-stack').classList.remove('train');
+function playFromHere(){
+  studyAutoStop();
+  mode='play'; phase='recall';
+  drill=null; study=null;
+  const rs=document.querySelector('.right-stack');
+  rs.classList.remove('train','study');
   document.getElementById('modePlay').classList.add('active');
   document.getElementById('modeTrain').classList.remove('active');
-  gameOver=false; botBusy=false;
-  undoStack=[];
+  document.getElementById('studyPanel').classList.add('hidden');
+  // La position courante (state) devient le point de départ d'une partie libre.
+  gameOver=false; resigned=false; botBusy=false; selected=null;
+  history=[]; undoStack=[]; bilanShown=false; bilanPending=false;
+  positionCounts=new Map(); positionCounts.set(posKey(state),1);
   render();
   if(state.turn===botColor) setTimeout(()=>triggerBot(),200);
 }
+// Conservé pour compat : le bouton de fin de drill réutilise la bascule.
+function continueInFreePlay(){ playFromHere(); }
 
 // === PHASE ÉTUDE =============================================================
 function studyApplyTo(ply){
@@ -1882,7 +1890,7 @@ function renderStudyPanel(){
 }
 window.__trainTest={ getMode:()=>mode, getPhase:()=>phase, getDrill:()=>drill, getStudy:()=>study,
   loadOpenings, featuredOpenings, searchOpenings, loadLessons, featuredLessons, searchLessons,
-  openingToLesson, startDrill, startStudy, studyStep, studyJumpTo, uciOf, buildOpeningPrompt };
+  openingToLesson, startDrill, startStudy, studyStep, studyJumpTo, playFromHere, uciOf, buildOpeningPrompt };
 // Seam de test : jouer un coup pour le camp au trait, sans déclencher le bot.
 window.__gameTest={ playUci:(uci)=>{
   const m=legalMoves(state).find(x=>uciOf(x)===uci);
@@ -2755,6 +2763,7 @@ document.getElementById('drillHintBtn').addEventListener('click',drillHint);
 document.getElementById('drillRestart').addEventListener('click',()=>{ if(drill) startDrill(drill.opening, drill.side); });
 document.getElementById('drillChange').addEventListener('click',()=>showOpeningPicker());
 document.getElementById('drillToFree').addEventListener('click',continueInFreePlay);
+document.getElementById('drillToPlay').addEventListener('click',playFromHere);
 document.getElementById('drillExplainBtn').addEventListener('click',explainOpening);
 document.getElementById('studyFirst').addEventListener('click',()=>studyJumpTo(0));
 document.getElementById('studyPrev').addEventListener('click',()=>studyStep(-1));

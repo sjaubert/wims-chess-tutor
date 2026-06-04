@@ -499,6 +499,7 @@
 .drill-feedback{font-size:14px;min-height:1.4em}
 .drill-feedback.good{color:var(--accent)}
 .drill-feedback.bad{color:#b3402e}
+.drill-hinttext{font-size:13px;color:var(--accent);min-height:1.2em;font-style:italic}
 .drill-btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(120,107,96,.4);background:rgba(255,250,242,.8);color:var(--ink);cursor:pointer;font-size:13px}
 .drill-btn:disabled{opacity:.45;cursor:not-allowed}
 .drill-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -600,6 +601,7 @@
                 <div class="train-title"><span id="drillName"></span> <span id="drillEco" class="drill-eco"></span></div>
                 <div id="drillProgress" class="drill-progress"></div>
                 <div id="drillFeedback" class="drill-feedback"></div>
+                <div id="drillHintText" class="drill-hinttext"></div>
                 <button id="drillHintBtn" class="drill-btn">Indice</button>
                 <button id="drillExplainBtn" class="drill-btn" disabled>💡 Explique cette ouverture</button>
                 <div id="drillExplain" class="drill-explain"></div>
@@ -1618,6 +1620,7 @@ function startDrill(opening, side){
   document.getElementById('drillExplainBtn').disabled=!getTutorSettings().apiKey;
   render();
   renderDrillPanel();
+  document.getElementById('drillHintText').textContent='';
   drillFeedback(side===WHITE?'À vous de jouer (Blancs).':'', '');
   if(side===BLACK) setTimeout(()=>drillPlayOpponent(),300);
 }
@@ -1653,6 +1656,7 @@ function drillTryMove(from,to){
   }
   state=applyMove(state,m,true);
   drill.plyIndex++; drill.hintLevel=0; drill.wrongTries=0;
+  document.getElementById('drillHintText').textContent='';
   selected=null; render(); renderDrillPanel();
   if(drill.plyIndex>=drill.line.length){ drillComplete(); return true; }
   drillFeedback('✓ Bien joué.','good');
@@ -1698,10 +1702,31 @@ function drillHint(){
   if(!drill||drill.plyIndex>=drill.line.length) return;
   const uci=drill.line[drill.plyIndex];
   const from=sqIndex(uci.slice(0,2)), to=sqIndex(uci.slice(2,4));
-  drill.hintLevel=(drill.hintLevel||0)+1;
+  drill.hintLevel=Math.min(4,(drill.hintLevel||0)+1);
   document.querySelectorAll('.square').forEach(s=>s.classList.remove('hint-from','hint-to'));
-  const fromEl=document.querySelector(`.square[data-i="${from}"]`); if(fromEl)fromEl.classList.add('hint-from');
-  if(drill.hintLevel>=2){ const toEl=document.querySelector(`.square[data-i="${to}"]`); if(toEl)toEl.classList.add('hint-to'); }
+  const hintTextEl=document.getElementById('drillHintText');
+  // Niveau 1 : idée en mots (commentaire du coup, sinon message générique).
+  if(drill.hintLevel>=1){
+    const idea=(drill.opening.comments&&drill.opening.comments[drill.plyIndex])||'Cherchez le meilleur développement.';
+    hintTextEl.textContent='💡 '+idea;
+  }
+  // Niveau 2 : surligne la pièce.
+  if(drill.hintLevel>=2){ const fromEl=document.querySelector(`.square[data-i="${from}"]`); if(fromEl)fromEl.classList.add('hint-from'); }
+  // Niveau 3 : surligne la case d'arrivée.
+  if(drill.hintLevel>=3){ const toEl=document.querySelector(`.square[data-i="${to}"]`); if(toEl)toEl.classList.add('hint-to'); }
+  // Niveau 4 : joue le coup à la place du stagiaire.
+  if(drill.hintLevel>=4){
+    const m=legalCache.find(x=>uciOf(x)===uci)||legalMoves(state).find(x=>uciOf(x)===uci);
+    if(m){
+      state=applyMove(state,m,true);
+      drill.plyIndex++; drill.hintLevel=0; drill.wrongTries=0;
+      selected=null; render(); renderDrillPanel();
+      hintTextEl.textContent='';
+      if(drill.plyIndex>=drill.line.length){ drillComplete(); return; }
+      drillFeedback('Coup joué pour vous. À vous ensuite.','');
+      setTimeout(()=>drillPlayOpponent(),250);
+    }
+  }
 }
 
 function drillComplete(){

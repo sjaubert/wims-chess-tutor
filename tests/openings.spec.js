@@ -84,7 +84,8 @@ test('drill Noirs : l\'app joue d\'abord le coup blanc', async ({ page }) => {
 test('Indice surligne la pièce à jouer', async ({ page }) => {
   await page.goto('/chess.html');
   await page.evaluate(async (op) => { await window.__trainTest.loadOpenings(); window.__trainTest.startDrill(op, 'w'); }, TEST_LINE);
-  await page.locator('#drillHintBtn').click();
+  await page.locator('#drillHintBtn').click(); // niveau 1 (mots)
+  await page.locator('#drillHintBtn').click(); // niveau 2 (pièce)
   await expect(page.locator('.square[data-i="52"]')).toHaveClass(/hint-from/);
 });
 

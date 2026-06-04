@@ -39,3 +39,22 @@ test('un coup faux incrémente le compteur d\'essais', async ({ page }) => {
 });
 
 module.exports = { LESSON, dragPiece };
+
+test('indices progressifs : mot -> pièce -> case -> coup joué', async ({ page }) => {
+  await page.goto('/chess.html');
+  await page.evaluate((l)=>window.__trainTest.startDrill(l,'w'), LESSON);
+  // Niveau 1 : idée en mots
+  await page.locator('#drillHintBtn').click();
+  await expect(page.locator('#drillHintText')).toContainText('idée 1');
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().hintLevel)).toBe(1);
+  // Niveau 2 : surligne la pièce (e2 = index 52)
+  await page.locator('#drillHintBtn').click();
+  await expect(page.locator('.square[data-i="52"]')).toHaveClass(/hint-from/);
+  // Niveau 3 : surligne la case d'arrivée (e4 = index 36)
+  await page.locator('#drillHintBtn').click();
+  await expect(page.locator('.square[data-i="36"]')).toHaveClass(/hint-to/);
+  // Niveau 4 : joue le coup -> plyIndex avance (e4 puis réponse e5)
+  await page.locator('#drillHintBtn').click();
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__trainTest.getDrill().plyIndex)).toBeGreaterThanOrEqual(2);
+});

@@ -54,36 +54,59 @@ test('Annuler est désactivé après la fin de partie (abandon)', async ({ page 
   await expect(page.locator('#undoMove')).toBeDisabled();
 });
 
-test('cliquer sur un coup de l\'historique ramène à cette position', async ({ page }) => {
+test('naviguer dans l\'historique via les clics sur les coups ne supprime pas l\'historique', async ({ page }) => {
   await page.goto('/chess.html');
   const start = await occupied(page);
-  await dragPiece(page, 52, 36); // e2 -> e4 ; le bot répond (coup 1)
+  await dragPiece(page, 52, 36); // 1) e2 -> e4 ; le bot répond (ply 1, 2)
   await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
   const afterMove1 = await occupied(page);
-  await dragPiece(page, 51, 35); // d2 -> d4 ; le bot répond (coup 2)
+  await dragPiece(page, 51, 35); // 2) d2 -> d4 ; le bot répond (ply 3, 4)
   await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  const afterMove2 = await occupied(page);
   
   const moves = page.locator('.history-move');
-  await expect(moves.first()).toBeVisible();
-  await moves.first().click();
+  await expect(moves.nth(0)).toBeVisible(); // 1. e4
   
-  // Revenir au premier coup blanc (index 0 de undoStack) ramène à la position de départ
-  expect(await occupied(page)).toEqual(start);
+  // Cliquer sur le 1er coup blanc (e4) -> visualisation du ply 1
+  await moves.nth(0).click();
+  
+  // L'historique n'est pas tronqué (les 4 coups sont toujours là)
+  await expect(moves).toHaveCount(4);
+  
+  // Le bouton "Retour au Direct" doit être actif
+  await expect(page.locator('#liveMove')).toBeEnabled();
+  
+  // Retour au direct
+  await page.locator('#liveMove').click();
+  expect(await occupied(page)).toEqual(afterMove2);
+  await expect(page.locator('#liveMove')).toBeDisabled();
 });
 
-test('cliquer sur le deuxième coup blanc ramène à l\'état intermédiaire', async ({ page }) => {
+test('naviguer avec les boutons de navigation Précédent/Suivant/Direct', async ({ page }) => {
   await page.goto('/chess.html');
+  const start = await occupied(page);
   await dragPiece(page, 52, 36); // 1) e2 -> e4 ; le bot répond
   await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
   const afterMove1 = await occupied(page);
   
-  await dragPiece(page, 51, 35); // 2) d2 -> d4 ; le bot répond
-  await expect(page.locator('#undoMove')).toBeEnabled({ timeout: 5000 });
+  // Au direct, Suivant et Direct sont désactivés, Précédent est activé
+  await expect(page.locator('#prevMove')).toBeEnabled();
+  await expect(page.locator('#nextMove')).toBeDisabled();
+  await expect(page.locator('#liveMove')).toBeDisabled();
   
-  const moves = page.locator('.history-move');
-  await expect(moves.nth(2)).toBeVisible();
-  await moves.nth(2).click();
+  // Reculer d'un coup (on revient avant le coup du Bot, donc après e2-e4 seul)
+  await page.locator('#prevMove').click();
+  await expect(page.locator('#nextMove')).toBeEnabled();
+  await expect(page.locator('#liveMove')).toBeEnabled();
   
-  // Revenir au deuxième coup blanc (index 2 de undoStack) ramène après le premier coup + réponse bot
+  // Reculer encore d'un coup -> position de départ
+  await page.locator('#prevMove').click();
+  expect(await occupied(page)).toEqual(start);
+  await expect(page.locator('#prevMove')).toBeDisabled(); // impossible de reculer plus
+  
+  // Avancer de deux coups -> revient à afterMove1
+  await page.locator('#nextMove').click();
+  await page.locator('#nextMove').click();
   expect(await occupied(page)).toEqual(afterMove1);
+  await expect(page.locator('#nextMove')).toBeDisabled();
 });

@@ -64,7 +64,7 @@
             padding: 20px;
             min-height: 0;
             display: grid;
-            grid-template-rows: auto minmax(0,1fr) auto 118px;
+            grid-template-rows: auto minmax(120px,1fr) auto 118px;
             overflow: hidden;
         }
         .score-pane { padding: 16px 18px }
@@ -255,6 +255,11 @@
         .history-move:hover {
             background: rgba(83, 107, 70, 0.15);
             color: var(--accent);
+        }
+        .history-move.current {
+            background: var(--accent) !important;
+            color: white !important;
+            font-weight: bold;
         }
         .score-head {
             display: flex;
@@ -565,6 +570,9 @@
               <button id="newGame">New Game</button>
               <button id="resign" class="danger">Abandonner</button>
               <button id="undoMove" class="secondary" style="grid-column:1/-1" disabled>↩ Annuler</button>
+              <button id="prevMove" class="secondary" disabled>◀ Précédent</button>
+              <button id="nextMove" class="secondary" disabled>Suivant ▶</button>
+              <button id="liveMove" class="secondary" style="grid-column:1/-1" disabled>Retour au Direct</button>
             </div>
             <div id="bookStatus" class="book-status" title="Cliquer pour charger un livre d'ouverture .bin (Polyglot)">Pas de livre — charger .bin</div>
             <input type="file" id="bookFileInput" accept=".bin" style="display:none">
@@ -1405,6 +1413,7 @@ const VAL={P:100,N:320,B:335,R:500,Q:930,K:0};
 let userColor=WHITE, botColor=BLACK;
 let state, flipped, selected, legalCache, lastMove, history, dragging, botBusy, gameOver, resigned;
 let undoStack=[]; // pile de photos de position pour l'annulation (mode partie libre)
+let viewPly=0;    // index du pli actuellement visualisé dans l'historique
 let bilanPending=false, bilanShown=false; // bilan de fin de partie (une fois par partie)
 let scores=loadScores(), scoredThisGame=false;
 let pendingPromo=null;
@@ -1822,6 +1831,7 @@ function playFromHere(){
   // La position courante (state) devient le point de départ d'une partie libre.
   selected=null; lastMove=null; history=[];
   botBusy=false; gameOver=false; scoredThisGame=false; resigned=false; undoStack=[];
+  viewPly=0;
   pendingPromo=null;
   positionCounts=new Map(); positionCounts.set(posKey(state),1);
   promoOverlay.classList.add('hidden');
@@ -1913,6 +1923,7 @@ window.__gameTest={ playUci:(uci)=>{
   const m=legalMoves(state).find(x=>uciOf(x)===uci);
   if(!m) return false;
   state=applyMove(state,m,true);
+  viewPly=history.length;
   selected=null; render();
   return true;
 } };
@@ -1930,7 +1941,8 @@ function setTutorSetting(key,value){
 
 function requestAnalysis(force){
   if((!tutorEnabled&&!force)||!worker)return;
-  worker.postMessage({type:'analyze',state,history});
+  const slicedHistory = history.slice(0, viewPly).map(h => ({uci: h.uci}));
+  worker.postMessage({type:'analyze',state,history:slicedHistory});
 }
 function renderTutorPanel(){
   const pane=document.getElementById('tutorPane');
@@ -2090,7 +2102,11 @@ function startWorker(){
       return;
     }
     const m=e.data;
-    if(m){ pushUndoSnapshot(); state=applyMove(state,m,true); }
+    if(m){
+      pushUndoSnapshot();
+      state=applyMove(state,m,true);
+      viewPly=history.length;
+    }
     botBusy=false;
     selected=null;
     render();
@@ -2385,7 +2401,9 @@ function pieceName(t){return{P:'PAWN',N:'KNIGHT',B:'BISHOP',R:'ROOK',Q:'QUEEN',K
 function updatePanel(){
   const lm=legalCache.length?legalCache:legalMoves(state);
   const noMoves=lm.length===0,chk=inCheck(state,state.turn),drawReason=isDrawPosition(lm);
-  if(resigned){
+  if(mode==='play' && viewPly < history.length){
+    statusEl.textContent='Visualisation de l\'historique';
+  } else if(resigned){
     // Abandon manuel : état terminal qui doit survivre aux render() suivants.
     gameOver=true;
     statusEl.textContent='Vous abandonnez — BOT gagne';
@@ -2409,6 +2427,11 @@ function updatePanel(){
   }
   updateScoreboard();
   document.getElementById('undoMove').disabled=!canUndo();
+  if(mode==='play'){
+    document.getElementById('prevMove').disabled = (viewPly <= 0);
+    document.getElementById('nextMove').disabled = (viewPly >= history.length);
+    document.getElementById('liveMove').disabled = (viewPly >= history.length);
+  }
   updateCaptures();
   movesEl.innerHTML=(()=>{
     let html='';
@@ -2416,9 +2439,11 @@ function updatePanel(){
       const wm=history[i],bm=history[i+1];
       const num=Math.floor(i/2)+1;
       if(mode==='play'){
+        const wClass = (i + 1 === viewPly) ? 'history-move current' : 'history-move';
+        const bClass = (i + 2 === viewPly) ? 'history-move current' : 'history-move';
         html+=`<div class="move-entry"><span class="move-main">${num}. `+
-              `<span class="history-move" onclick="revertToMove(${i})">${wm.notation}</span>`+
-              (bm?` <span class="history-move" onclick="revertToMove(${i+1})">${bm.notation}</span>`:'')+
+              `<span class="${wClass}" onclick="navigateToHistory(${i})">${wm.notation}</span>`+
+              (bm?` <span class="${bClass}" onclick="navigateToHistory(${i+1})">${bm.notation}</span>`:'')+
               `</span></div>`;
       } else {
         let line=`${num}. ${wm.notation}`;
@@ -2488,6 +2513,7 @@ function completePromo(m){
   pendingPromo=null;
   pushUndoSnapshot();
   state=applyMove(state,m,true);
+  viewPly=history.length; // Réaligner la visualisation sur le direct
   selected=null;
   render();
   requestAnalysis();
@@ -2533,28 +2559,50 @@ function undoMove(){
   }
   if(!snap || snap.turnAtSnapshot!==userColor) return;
   restoreSnapshot(snap);
+  viewPly=history.length; // Réaligner la visualisation sur le direct
   render();
   if(tutorEnabled) requestAnalysis();
 }
 
-function revertToMove(idx){
-  if(mode!=='play' || botBusy) return;
-  if(idx<0 || idx>=undoStack.length) return;
-  const snap=undoStack[idx];
-  if(!snap) return;
-  restoreSnapshot(snap);
-  undoStack.length=idx;
-  document.getElementById('bilanOverlay').classList.add('hidden');
-  bilanPending=false; bilanShown=false;
+function applyHistoryTo(ply){
+  state=fromFEN(START);
+  for(let i=0;i<ply;i++){
+    const m=legalMoves(state).find(x=>uciOf(x)===history[i].uci);
+    if(!m) break;
+    state=applyMove(state,m,false);
+  }
+  if(ply>0){ 
+    const h=history[ply-1]; 
+    lastMove={from:h.from, to:h.to}; 
+  } else {
+    lastMove=null;
+  }
+  selected=null; legalCache=[];
+}
+
+function navigateToHistory(idx){
+  console.log('navigateToHistory called', { idx, mode, botBusy, historyLength: history.length });
+  if(mode!=='play' || botBusy) {
+    console.log('navigateToHistory early return 1: mode or botBusy check failed');
+    return;
+  }
+  const targetPly = idx + 1;
+  if(targetPly < 0 || targetPly > history.length) {
+    console.log('navigateToHistory early return 2: bounds check failed', { targetPly });
+    return;
+  }
+  viewPly = targetPly;
+  console.log('navigateToHistory set viewPly to', viewPly);
+  applyHistoryTo(viewPly);
   render();
   if(tutorEnabled) requestAnalysis();
-  if(!gameOver && state.turn===botColor) setTimeout(()=>triggerBot(),80);
 }
-window.revertToMove=revertToMove;
+window.navigateToHistory=navigateToHistory;
 
 // === MOVE EXECUTION ===
 function tryMove(from,to){
   if(mode==='train') return drillTryMove(from,to);
+  if(mode==='play' && viewPly < history.length) return false;
   if(state.turn!==userColor||botBusy||gameOver)return false;
   const choices=legalCache.filter(m=>m.from===from&&m.to===to);
   if(!choices.length)return false;
@@ -2566,6 +2614,7 @@ function tryMove(from,to){
   pushUndoSnapshot();
   const m=choices[0];
   state=applyMove(state,m,true);
+  viewPly=history.length; // Réaligner la visualisation sur le direct
   selected=null;
   render();
   requestAnalysis();
@@ -2581,6 +2630,7 @@ function squareFromPoint(x,y){
 // === INTERACTION ===
 boardEl.addEventListener('pointerdown',e=>{
   if(mode==='train'&&phase==='study')return; // plateau en lecture seule pendant l'Étude
+  if(mode==='play'&&viewPly<history.length)return; // plateau en lecture seule pendant la visualisation
   if(state.turn!==userColor||botBusy||gameOver)return;
   const piece=e.target.closest('.piece');if(!piece)return;
   const i=Number(piece.dataset.i),p=state.b[i];
@@ -2609,6 +2659,7 @@ boardEl.addEventListener('pointerup',e=>{
 });
 boardEl.addEventListener('click',e=>{
   if(mode==='train'&&phase==='study')return; // plateau en lecture seule pendant l'Étude
+  if(mode==='play'&&viewPly<history.length)return; // plateau en lecture seule pendant la visualisation
   if(dragging||state.turn!==userColor||botBusy||gameOver)return;
   const sq=e.target.closest('.square');if(!sq)return;
   const i=Number(sq.dataset.i),p=state.b[i];
@@ -2624,6 +2675,7 @@ function startNewGame(flipColors=true){
   state=fromFEN(START);
   selected=null;lastMove=null;history=[];
   botBusy=false;gameOver=false;scoredThisGame=false;resigned=false;undoStack=[];
+  viewPly=0;
   pendingPromo=null;
   positionCounts=new Map();
   positionCounts.set(posKey(state),1); // la position de départ compte comme 1re occurrence
@@ -2721,6 +2773,30 @@ document.getElementById('newGame').onclick=()=>{
   if(confirm('Nouvelle partie ?'))startNewGame(true);
 };
 document.getElementById('undoMove').onclick=undoMove;
+document.getElementById('prevMove').onclick=()=>{
+  if(viewPly>0){
+    viewPly--;
+    applyHistoryTo(viewPly);
+    render();
+    if(tutorEnabled) requestAnalysis();
+  }
+};
+document.getElementById('nextMove').onclick=()=>{
+  if(viewPly<history.length){
+    viewPly++;
+    applyHistoryTo(viewPly);
+    render();
+    if(tutorEnabled) requestAnalysis();
+  }
+};
+document.getElementById('liveMove').onclick=()=>{
+  if(viewPly<history.length){
+    viewPly=history.length;
+    applyHistoryTo(viewPly);
+    render();
+    if(tutorEnabled) requestAnalysis();
+  }
+};
 document.getElementById('resign').onclick=()=>{
   if(gameOver||resigned)return;
   if(confirm('Abandonner la partie ?')){

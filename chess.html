@@ -1337,6 +1337,40 @@ function classifyLoss(loss){
 function acplToElo(acpl){
   return Math.max(400, Math.min(Math.round(3000 * Math.exp(-acpl / 120)), 2800));
 }
+function summarizeBilan(a){
+  const counted = a.losses.length;
+  if(!counted) return { counted:0, elo:null, accuracy:null, acpl:null, blunders:0, mistakes:0, inaccuracies:0 };
+  const acpl = a.losses.reduce((s,x)=>s+x,0)/counted;
+  const accuracy = a.accs.reduce((s,x)=>s+x,0)/counted;
+  return { counted, acpl, elo:acplToElo(acpl), accuracy, blunders:a.blunders, mistakes:a.mistakes, inaccuracies:a.inaccuracies };
+}
+// history : [{by,uci,...}] (N coups). records : [{evalCp,isBook,nLegal}] (N+1 positions).
+function computeBilan(history, records, opts={}){
+  const cap = opts.cap != null ? opts.cap : BILAN_CP_CAP;
+  const acc = {
+    w:{ losses:[], accs:[], blunders:0, mistakes:0, inaccuracies:0 },
+    b:{ losses:[], accs:[], blunders:0, mistakes:0, inaccuracies:0 },
+  };
+  for(let i=0;i<history.length;i++){
+    const rec = records[i], next = records[i+1];
+    if(!rec || !next) continue;
+    if(rec.isBook) continue;        // coup théorique (livre)
+    if(rec.nLegal <= 1) continue;   // coup forcé
+    const by = history[i].by;       // 'w' ou 'b' = camp au trait en Pi
+    const sign = by === 'w' ? 1 : -1;
+    const before = sign * rec.evalCp;
+    const after  = sign * next.evalCp;
+    const loss = cpLoss(before, after, cap);
+    const A = by === 'w' ? acc.w : acc.b;
+    A.losses.push(loss);
+    A.accs.push(moveAccuracy(winPercent(before) - winPercent(after)));
+    const c = classifyLoss(loss);
+    if(c === 'blunder') A.blunders++;
+    else if(c === 'mistake') A.mistakes++;
+    else if(c === 'inaccuracy') A.inaccuracies++;
+  }
+  return { white: summarizeBilan(acc.w), black: summarizeBilan(acc.b) };
+}
 
 const FEATURED_OPENINGS=['Ruy Lopez','Italian Game','Sicilian Defense','French Defense',
   'Caro-Kann Defense','Scandinavian Defense',"Queen's Gambit Declined","King's Indian Defense",
@@ -1559,7 +1593,7 @@ window.__gameTest={ playUci:(uci)=>{
   selected=null; render();
   return true;
 } };
-window.__bilanTest = { winPercent, cpLoss, moveAccuracy, classifyLoss, acplToElo, lastResult: null };
+window.__bilanTest = { winPercent, cpLoss, moveAccuracy, classifyLoss, acplToElo, computeBilan, lastResult: null };
 
 function getTutorSettings(){
   return {

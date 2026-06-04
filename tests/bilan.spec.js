@@ -62,3 +62,39 @@ test('moveAccuracy : delta nul ≈ 100, gros delta faible', async ({ page }) => 
   expect(Math.round(r.perfect)).toBe(100);
   expect(r.bad).toBeLessThan(30);
 });
+
+test('computeBilan : pertes et compteurs par camp', async ({ page }) => {
+  await bilanApi(page);
+  const r = await page.evaluate(() => {
+    const history = [{ by: 'w', uci: 'e2e4' }, { by: 'b', uci: 'e7e5' }];
+    const records = [
+      { evalCp: 20, isBook: false, nLegal: 20 },   // P0 (blanc au trait)
+      { evalCp: -200, isBook: false, nLegal: 20 },  // P1 (noir au trait)
+      { evalCp: 10, isBook: false, nLegal: 20 },    // P2
+    ];
+    return window.__bilanTest.computeBilan(history, records);
+  });
+  expect(r.white.counted).toBe(1);
+  expect(r.white.blunders).toBe(1);     // 20 -> -200 = perte 220 (blanc)
+  expect(r.black.counted).toBe(1);
+  expect(r.black.blunders).toBe(1);     // 200 -> -10 = perte 210 (noir)
+  expect(r.white.elo).toBeGreaterThanOrEqual(400);
+  expect(r.white.elo).toBeLessThanOrEqual(2800);
+});
+
+test('computeBilan : exclut coups du livre et coups forcés', async ({ page }) => {
+  await bilanApi(page);
+  const r = await page.evaluate(() => {
+    const history = [{ by: 'w', uci: 'e2e4' }, { by: 'b', uci: 'e7e5' }];
+    const records = [
+      { evalCp: 20, isBook: true, nLegal: 20 },     // coup blanc = théorie -> exclu
+      { evalCp: -200, isBook: false, nLegal: 1 },   // coup noir = forcé -> exclu
+      { evalCp: 10, isBook: false, nLegal: 20 },
+    ];
+    return window.__bilanTest.computeBilan(history, records);
+  });
+  expect(r.white.counted).toBe(0);
+  expect(r.white.elo).toBeNull();
+  expect(r.black.counted).toBe(0);
+  expect(r.black.accuracy).toBeNull();
+});

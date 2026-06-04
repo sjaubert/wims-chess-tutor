@@ -1201,6 +1201,7 @@ function bestBotMove(s,history){
 }
 
 const ANALYZE_TIME_MS=700, ANALYZE_DEPTH=6;
+const BILAN_TIME_MS=150, BILAN_DEPTH=5; // budget léger pour l'analyse post-partie
 
 // La position courante est-elle encore dans la théorie connue ?
 // openingBookMove renvoie un coup si la position est dans le livre, sinon null.
@@ -1224,7 +1225,9 @@ function extractPV(s,firstMove,maxLen){
   return pv;
 }
 
-function analyzePosition(s,history){
+function analyzePosition(s,history,opts){
+  const timeMs=(opts&&opts.timeMs)||ANALYZE_TIME_MS;
+  const maxDepth=(opts&&opts.depth)||ANALYZE_DEPTH;
   const inBook=positionInBook(s,history);
   const moves=legalMoves(s);
   if(!moves.length){
@@ -1232,9 +1235,9 @@ function analyzePosition(s,history){
     const evalCp=mated?(s.turn===WHITE?-MATE:MATE):0;
     return {evalCp,pv:[],isBook:inBook,gameOver:true};
   }
-  tt=new Map();deadline=performance.now()+ANALYZE_TIME_MS;
+  tt=new Map();deadline=performance.now()+timeMs;
   let best=moves[0],bestScore=-Infinity;
-  for(let depth=1;depth<=ANALYZE_DEPTH;depth++){
+  for(let depth=1;depth<=maxDepth;depth++){
     try{
       const rootKey=posKey(s),ent=tt.get(rootKey);
       moves.sort((a,b)=>moveOrderScore(s,b,ent?.best)-moveOrderScore(s,a,ent?.best));
@@ -1265,6 +1268,18 @@ self.onmessage=function(e){
     // On renvoie aussi la position analysée : renderTutorPanel rejoue la variante
     // sur CETTE position, pas sur l'état courant (robuste si l'état a avancé entretemps).
     self.postMessage({type:'analysis',...a,fromState:e.data.state});
+    return;
+  }
+  if(e.data&&e.data.type==='bilan'){
+    const {states,moves}=e.data;
+    const records=[];
+    for(let i=0;i<states.length;i++){
+      const hist=moves.slice(0,i).map(u=>({uci:u}));
+      const a=analyzePosition(states[i],hist,{timeMs:BILAN_TIME_MS,depth:BILAN_DEPTH});
+      records.push({evalCp:a.evalCp,isBook:positionInBook(states[i],hist),nLegal:legalMoves(states[i]).length});
+      self.postMessage({type:'bilanProgress',done:i+1,total:states.length});
+    }
+    self.postMessage({type:'bilanResult',records});
     return;
   }
   const{state,history}=e.data;

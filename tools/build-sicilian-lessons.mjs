@@ -2,6 +2,7 @@
 // en partant de la ligne nommée dans openings.json. Produit tools/sicilian-draft.json
 // (sans commentaires). Usage : node tools/build-sicilian-lessons.mjs
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
+import { pathToFileURL } from 'url';
 
 export const TARGETS = [
   { id: 'sicilian-najdorf',    side: 'b', anchorName: 'Sicilian Defense: Najdorf Variation' },
@@ -65,6 +66,6 @@ async function main() {
   console.log(`sicilian-draft.json écrit : ${out.length} leçons.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(e => { console.error(e); process.exit(1); });
 }

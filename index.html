@@ -2581,18 +2581,10 @@ function applyHistoryTo(ply){
 }
 
 function navigateToHistory(idx){
-  console.log('navigateToHistory called', { idx, mode, botBusy, historyLength: history.length });
-  if(mode!=='play' || botBusy) {
-    console.log('navigateToHistory early return 1: mode or botBusy check failed');
-    return;
-  }
+  if(mode!=='play' || botBusy) return;
   const targetPly = idx + 1;
-  if(targetPly < 0 || targetPly > history.length) {
-    console.log('navigateToHistory early return 2: bounds check failed', { targetPly });
-    return;
-  }
+  if(targetPly < 0 || targetPly > history.length) return;
   viewPly = targetPly;
-  console.log('navigateToHistory set viewPly to', viewPly);
   applyHistoryTo(viewPly);
   render();
   if(tutorEnabled) requestAnalysis();

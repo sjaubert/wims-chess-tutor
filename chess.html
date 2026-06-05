@@ -509,6 +509,11 @@
 .opening-row:hover{border-color:var(--accent)}
 .opening-row .eco{color:var(--muted);font-size:11px;margin-right:6px}
 .opening-row .moves{color:var(--muted);font-size:11px}
+.opening-fam>summary{cursor:pointer;font-weight:600;font-size:12px;color:var(--accent);padding:4px 2px;list-style:none}
+.opening-fam>summary::-webkit-details-marker{display:none}
+.opening-fam>summary::before{content:'▸ ';color:var(--muted)}
+.opening-fam[open]>summary::before{content:'▾ '}
+.opening-fam{display:flex;flex-direction:column;gap:4px}
 .opening-sidechoice{display:flex;gap:8px;margin-top:4px}
 .drill-eco{color:var(--muted);font-weight:400;font-size:13px}
 .drill-progress{font-size:13px;color:var(--muted)}
@@ -1616,15 +1621,31 @@ function openingMovesPreview(o){
   return formatPvLine(san, fromFEN(START));
 }
 
+function familyOf(name){ const i=name.indexOf(':'); return i<0?name:name.slice(0,i).trim(); }
+
 function renderOpeningRows(list){
   const box=document.getElementById('openingResults');
   box.innerHTML='';
+  const groups=new Map();
   for(const o of list){
-    const row=document.createElement('div');
-    row.className='opening-row';
-    row.innerHTML=`<span class="eco">${o.eco}</span>${o.name}<div class="moves">${openingMovesPreview(o)}</div>`;
-    row.addEventListener('click',()=>askSideThenStart(o,row));
-    box.appendChild(row);
+    const fam=familyOf(o.name);
+    if(!groups.has(fam)) groups.set(fam,[]);
+    groups.get(fam).push(o);
+  }
+  for(const [fam, items] of groups){
+    const det=document.createElement('details');
+    det.className='opening-fam'; det.open=true;
+    const sum=document.createElement('summary');
+    sum.textContent=`${fam} (${items.length})`;
+    det.appendChild(sum);
+    for(const o of items){
+      const row=document.createElement('div');
+      row.className='opening-row';
+      row.innerHTML=`<span class="eco">${o.eco}</span>${o.name}<div class="moves">${openingMovesPreview(o)}</div>`;
+      row.addEventListener('click',()=>askSideThenStart(o,row));
+      det.appendChild(row);
+    }
+    box.appendChild(det);
   }
 }
 function renderLessonRows(list, boxId){
@@ -1917,7 +1938,7 @@ function renderStudyPanel(){
 }
 window.__trainTest={ getMode:()=>mode, getPhase:()=>phase, getDrill:()=>drill, getStudy:()=>study,
   loadOpenings, featuredOpenings, searchOpenings, loadLessons, featuredLessons, searchLessons,
-  openingToLesson, startDrill, startStudy, studyStep, studyJumpTo, playFromHere, uciOf, buildOpeningPrompt };
+  openingToLesson, startDrill, startStudy, studyStep, studyJumpTo, playFromHere, uciOf, buildOpeningPrompt, familyOf };
 // Seam de test : jouer un coup pour le camp au trait, sans déclencher le bot.
 window.__gameTest={ playUci:(uci)=>{
   const m=legalMoves(state).find(x=>uciOf(x)===uci);

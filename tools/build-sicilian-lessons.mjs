@@ -5,9 +5,9 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { pathToFileURL } from 'url';
 
 export const TARGETS = [
-  { id: 'sicilian-najdorf',    side: 'b', anchorName: 'Sicilian Defense: Najdorf Variation' },
-  { id: 'sicilian-dragon',     side: 'b', anchorName: 'Sicilian Defense: Dragon Variation' },
-  { id: 'sicilian-classical',  side: 'b', anchorName: 'Sicilian Defense: Classical Variation' },
+  { id: 'sicilian-najdorf', side: 'b', anchorName: 'Sicilian Defense: Najdorf Variation' },
+  { id: 'sicilian-dragon', side: 'b', anchorName: 'Sicilian Defense: Dragon Variation' },
+  { id: 'sicilian-classical', side: 'b', anchorName: 'Sicilian Defense: Classical Variation' },
   { id: 'sicilian-sveshnikov', side: 'b', anchorName: 'Sicilian Defense: Lasker-Pelikan Variation, Sveshnikov Variation' },
 ];
 
@@ -35,14 +35,23 @@ export async function extendLine(uci, maxPlies, fetchPlay) {
 }
 
 // fetchPlay réel : cache disque puis API masters, avec délai de politesse.
+// fetchPlay réel : cache disque puis API masters, avec délai de politesse.
 function makeRealFetchPlay(cacheDir) {
   return async (uci) => {
     const key = uci.join('_') || 'start';
     const file = new URL(`${key}.json`, cacheDir);
     if (existsSync(file)) return JSON.parse(readFileSync(file, 'utf8'));
+
     const url = `https://explorer.lichess.org/masters?play=${uci.join(',')}`;
-    const res = await fetch(url);
+
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.LICHESS_TOKEN}`
+      }
+    });
+
     if (!res.ok) throw new Error(`HTTP ${res.status} pour ${url}`);
+
     const data = await res.json();
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(file, JSON.stringify(data));
@@ -50,7 +59,6 @@ function makeRealFetchPlay(cacheDir) {
     return data;
   };
 }
-
 async function main() {
   const openings = JSON.parse(readFileSync(new URL('../openings.json', import.meta.url), 'utf8'));
   const cacheDir = new URL('./sicilian-src/', import.meta.url);

@@ -1,7 +1,24 @@
 const { test, expect } = require('@playwright/test');
+const { validateLessons } = require('../tools/validate-lessons.js');
+const lessons = require('../lessons.json');
 
-// NB : les tests de données des 4 leçons curées (Najdorf/Dragon/Sveshnikov/Classique)
-// sont ajoutés dans la Task 4, une fois le contenu rédigé dans lessons.json.
+const IDS = ['sicilian-najdorf', 'sicilian-dragon', 'sicilian-sveshnikov', 'sicilian-classical'];
+
+test('lessons.json reste valide après ajout des siciliennes', () => {
+  const errors = validateLessons(lessons);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('les 4 leçons siciliennes sont présentes, profondes et côté Noir', () => {
+  for (const id of IDS) {
+    const l = lessons.find(x => x.id === id);
+    expect(l, `leçon manquante : ${id}`).toBeTruthy();
+    expect(l.category).toBe('mainline');
+    expect(l.side).toBe('b');
+    expect(l.uci.length).toBeGreaterThanOrEqual(14);
+    expect(l.uci.length).toBe(l.comments.length);
+  }
+});
 
 test('le catalogue groupe les résultats par famille (en-tête repliable)', async ({ page }) => {
   await page.goto('/chess.html');

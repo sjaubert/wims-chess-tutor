@@ -624,5 +624,33 @@
     "trapPly": 5,
     "summary": "Contre 3…f5??, le Blanc sacrifie pour ouvrir la diagonale h5-e8 et mate par Fg6#.",
     "refutation": "Dh5+ puis, après l'échec à la découverte gxh7+ et …Cxh5, Fg6# : le roi e8 est emmuré par ses propres pions et fou."
+  },
+  {
+    "id": "tennison-queen-trap",
+    "name": "Piège de la dame (gambit Tennison)",
+    "category": "trap",
+    "eco": "A06",
+    "side": "w",
+    "uci": ["e2e4", "d7d5", "g1f3", "d5e4", "f3g5", "g8f6", "d2d3", "e4d3", "f1d3", "h7h6", "g5f7", "e8f7", "d3g6", "f7g6", "d1d8"],
+    "comments": [
+      "1.e4.",
+      "Réponse scandinave : Noir rend la pareille au centre.",
+      "Gambit Tennison : le cavalier va récupérer le pion.",
+      "Noir prend le pion e4.",
+      "Le cavalier saute en g5, visant f7 et e4.",
+      "Noir développe et attaque… mais néglige f7.",
+      "Le Blanc rouvre la diagonale du fou.",
+      "Noir prend le pion d3.",
+      "Le fou reprend, braqué sur la diagonale b1-h7.",
+      "Noir chasse le cavalier g5.",
+      "Cxf7 ! Le cavalier prend le pion et fourchette dame et tour.",
+      "Le roi reprend le cavalier (sinon la dame tombe).",
+      "Fg6+ ! Sacrifice d'attraction du fou.",
+      "La gaffe : …Rxg6?? attire le roi et abandonne la dame.",
+      "Dxd8 : le Blanc gagne la dame (pour deux pièces), avantage décisif."
+    ],
+    "trapPly": 13,
+    "summary": "Dans le gambit Tennison, Cxf7! puis Fg6+ attire le roi ; après …Rxg6??, Dxd8 rafle la dame.",
+    "refutation": "Cxf7 fourchette D+T ; après …Rxf7 Fg6+ …Rxg6?? Dxd8 gagne la dame contre deux pièces."
   }
 ]

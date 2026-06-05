@@ -149,6 +149,23 @@ désormais les résultats par **famille** = texte avant le premier `:` du nom (h
 `familyOf`, exposé sur `window.__trainTest`). Chaque famille est un `<details class="opening-fam">`
 repliable. Tests : `tests/sicilian.spec.js` (données des 4 leçons + groupement).
 
+## Vérification des pièges (`tools/verify-traps.mjs`)
+
+Les pièges (`category: "trap"`) sont vérifiés par un **oracle chess.js** en plus de
+`validate-lessons.js` (qui ne contrôle que la légalité et l'alignement des commentaires).
+Chaque piège listé dans la table `EXPECT` de `tools/verify-traps.mjs` est rejoué jusqu'au bout
+et doit confirmer sa conclusion :
+
+- `'mate'` → la position finale doit être **échec et mat** (`isCheckmate()`).
+- `{ material: n }` → le camp `side` doit **mener d'au moins n points** (P1 C3 F3 T5 D9).
+
+Commande : `node tools/verify-traps.mjs`. **Principe** : on n'ajoute qu'un piège à conclusion
+**forcée** (mat ou gain net sans reprise). Les razzias profondes dont l'avantage matériel est
+ensuite récupéré par l'adversaire (instantané matériel trompeur) sont **écartées** — l'oracle
+est la source de vérité. Le catalogue compte **17 pièges** (11 historiques + 6 vérifiés :
+Budapest/Kieninger, sibérien, Owen, Réti-Tartakower [mats] ; Tennison, Petroff [gain forcé]).
+Spec/plan : `docs/superpowers/{specs,plans}/2026-06-05-pieges-supplementaires*`.
+
 ## Améliorations possibles (backlog)
 
 - **Suivi de progression** par leçon (non vue / en cours / acquise) en localStorage, pastilles
@@ -156,6 +173,8 @@ repliable. Tests : `tests/sicilian.spec.js` (données des 4 leçons + groupement
 - Accepter les **transpositions** (comparer par position plutôt que par coup exact).
 - Rebrancher le bouton **« Explique »** (Claude) sur les leçons curées.
 - Mode « révision aléatoire » ; barre de progression graphique en restitution.
-- Étendre le contenu `lessons.json` (objectif spec : ~15-20 ouvertures + ~30 pièges).
+- Étendre encore le contenu `lessons.json` (~11 ouvertures + 17 pièges au 05 juin 2026 ;
+  objectif initial ~15-20 ouvertures + ~30 pièges). Pour de nouveaux pièges « razzia », muscler
+  l'oracle (mini-recherche de la défense adverse) afin de prouver la tenue de l'avantage.
 - Lancer `build-sicilian-lessons.mjs` depuis un réseau autorisant lichess pour réaligner les
   lignes siciliennes sur la base *masters*.

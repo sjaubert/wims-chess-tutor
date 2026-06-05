@@ -18,6 +18,8 @@ export const EXPECT = {
   'siberian-trap': 'mate',
   'owen-defense-trap': 'mate',
   'tennison-queen-trap': { material: 2 },
+  'reti-tartakower-trap': 'mate',
+  'petroff-fork-trap': { material: 2 },
 };
 
 const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };

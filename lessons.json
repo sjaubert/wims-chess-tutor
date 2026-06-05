@@ -652,5 +652,54 @@
     "trapPly": 13,
     "summary": "Dans le gambit Tennison, Cxf7! puis Fg6+ attire le roi ; après …Rxg6??, Dxd8 rafle la dame.",
     "refutation": "Cxf7 fourchette D+T ; après …Rxf7 Fg6+ …Rxg6?? Dxd8 gagne la dame contre deux pièces."
+  },
+  {
+    "id": "reti-tartakower-trap",
+    "name": "Piège Réti-Tartakower (Caro-Kann)",
+    "category": "trap",
+    "eco": "B15",
+    "side": "w",
+    "uci": ["e2e4", "c7c6", "d2d4", "d7d5", "b1c3", "d5e4", "c3e4", "b8d7", "d1e2", "g8f6", "e4d6"],
+    "comments": [
+      "1.e4.",
+      "Défense Caro-Kann.",
+      "Le Blanc bâtit un centre idéal.",
+      "Noir conteste e4.",
+      "Développe et défend e4.",
+      "Noir prend en e4.",
+      "Le cavalier reprend, bien centralisé.",
+      "Noir prépare …Cgf6 sans doubler ses pions.",
+      "Coup-piège : la dame se poste sur la colonne e, l'air de rien.",
+      "La gaffe : …Cgf6?? bloque la fuite du roi en e8.",
+      "Cd6# ! Mat étouffé : le pion e7, cloué par la dame e2, ne peut prendre, et le roi est emmuré."
+    ],
+    "trapPly": 9,
+    "summary": "Le piège Réti-Tartakower (1910) : après 5…Cgf6??, Cd6# car le pion e7 est cloué sur la colonne e.",
+    "refutation": "Cd6# : le pion e7, cloué par la dame e2, ne peut capturer le cavalier ; il fallait jouer 5…Cdf6."
+  },
+  {
+    "id": "petroff-fork-trap",
+    "name": "Piège de la Petroff (fourchette Cc6+)",
+    "category": "trap",
+    "eco": "C42",
+    "side": "w",
+    "uci": ["e2e4", "e7e5", "g1f3", "g8f6", "f3e5", "f6e4", "d1e2", "e4f6", "e5c6", "d8e7", "c6e7", "f8e7"],
+    "comments": [
+      "1.e4.",
+      "1…e5.",
+      "Attaque e5.",
+      "Défense Petroff (russe) : Noir attaque en retour.",
+      "Le Blanc prend le pion.",
+      "Noir reprend symétriquement… mais c'est prématuré (il fallait 3…d6 d'abord).",
+      "Coup-piège : la dame cloue le cavalier e4 sur la colonne e.",
+      "La gaffe : …Cf6?? dégage la colonne e devant le roi.",
+      "Cc6+ ! Échec à la découverte : la dame e2 frappe le roi et le cavalier fourchette la dame.",
+      "Noir intercale sa dame (forcé).",
+      "Le cavalier prend la dame.",
+      "Noir reprend : le Blanc a gagné la dame contre un cavalier."
+    ],
+    "trapPly": 7,
+    "summary": "Dans la Petroff, 3…Cxe4?? puis 4…Cf6?? permet 5.Cc6+ (échec à la découverte) qui gagne la dame.",
+    "refutation": "5.Cc6+ découvre l'attaque de la dame e2 sur le roi et fourchette la dame d8 ; il fallait 3…d6 avant de reprendre en e4."
   }
 ]

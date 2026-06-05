@@ -1,7 +1,14 @@
 # Spec — Approfondissement Sicilien du module ouvertures
 
 **Date :** 2026-06-05
-**Statut :** validé (design approuvé), prêt pour plan d'implémentation
+**Statut :** implémenté (voir note de provenance ci-dessous)
+
+> **Note d'implémentation (05 juin 2026) :** `explorer.lichess.org` s'est révélé **bloqué par
+> le pare-feu réseau** (serveur WIMS et postes externes). Le script `build-sicilian-lessons.mjs`
+> n'a donc pas pu s'exécuter ; les 4 lignes ont été saisies à partir de la **théorie standard,
+> validées par l'auteur** (lignes principales : Najdorf Attaque anglaise, Dragon yougoslave,
+> Sveshnikov, Classique Richter-Rauzer). Le pipeline d'extraction reste livré et réutilisable
+> depuis un réseau autorisant lichess. Tout le reste du spec est respecté à l'identique.
 **Module concerné :** entraînement / tuteur d'ouvertures (`chess.html` + copie identique `index.html`)
 
 ## 1. Objectif

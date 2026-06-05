@@ -119,12 +119,43 @@ ouverte en Étude.
   sur blanc (cas vécu : les coups `.study-move` étaient invisibles). Test garde-fou dans
   `tests/study.spec.js` (« texte lisible ») et `tests/openings.spec.js`.
 
+## Approfondissement Sicilien (05 juin 2026)
+
+Quatre leçons curées profondes (16 plis, côté **Noir**) ajoutées à `lessons.json`, lignes
+principales standard de chaque variante :
+
+| id | Variante | ECO |
+|----|----------|-----|
+| `sicilian-najdorf` | Najdorf, Attaque anglaise (mise à jour : 10 → 16 plis) | B90 |
+| `sicilian-dragon` | Dragon, Attaque yougoslave | B76 |
+| `sicilian-sveshnikov` | Sveshnikov | B33 |
+| `sicilian-classical` | Classique, Richter-Rauzer | B66 |
+
+**Pipeline d'extraction prévu** — `tools/build-sicilian-lessons.mjs` (+ tests
+`tools/build-sicilian-lessons.test.mjs`, lancés par `node --test`) : part de la ligne nommée
+dans `openings.json` (`pickAnchor`) et la prolonge en suivant le coup le plus joué de
+l'explorateur **lichess masters** (`extendLine`), avec cache disque dans `tools/sicilian-src/`,
+pour produire `tools/sicilian-draft.json`. Les commentaires français sont ensuite rédigés à la
+main puis fusionnés dans `lessons.json`, validés par `tools/validate-lessons.js`.
+
+> **Note de provenance (05 juin 2026) :** `explorer.lichess.org` est **bloqué par le pare-feu**
+> du réseau (serveur WIMS comme postes externes) → le script n'a pas pu s'exécuter. Les 4
+> lignes ont donc été saisies à partir de la **théorie standard, validées par l'auteur**, pas
+> via l'extraction lichess. Le script reste en place et redeviendra utilisable depuis un réseau
+> autorisant lichess.
+
+**Groupement du catalogue par famille** — `renderOpeningRows` (chess.html / index.html) groupe
+désormais les résultats par **famille** = texte avant le premier `:` du nom (helper pur
+`familyOf`, exposé sur `window.__trainTest`). Chaque famille est un `<details class="opening-fam">`
+repliable. Tests : `tests/sicilian.spec.js` (données des 4 leçons + groupement).
+
 ## Améliorations possibles (backlog)
 
 - **Suivi de progression** par leçon (non vue / en cours / acquise) en localStorage, pastilles
   + révision « ce qui n'est pas acquis » ; à terme révision espacée type Anki.
 - Accepter les **transpositions** (comparer par position plutôt que par coup exact).
 - Rebrancher le bouton **« Explique »** (Claude) sur les leçons curées.
-- Regrouper les variantes d'une même famille ECO dans le catalogue ; mode « révision
-  aléatoire » ; barre de progression graphique en restitution.
+- Mode « révision aléatoire » ; barre de progression graphique en restitution.
 - Étendre le contenu `lessons.json` (objectif spec : ~15-20 ouvertures + ~30 pièges).
+- Lancer `build-sicilian-lessons.mjs` depuis un réseau autorisant lichess pour réaligner les
+  lignes siciliennes sur la base *masters*.
